@@ -30,12 +30,12 @@ import streamlit as st
 warnings.filterwarnings("ignore")
 
 # ── 설정 ──────────────────────────────────────────────────────────────
-EMBED_MODEL_PATH    = "/Users/dohyun/Desktop/캡스톤/0407/models/embed_finetuned"
-SUMMARY_MODEL_PATH  = "/Users/dohyun/Desktop/캡스톤/0407/models/summary_finetuned"
-CLASSIFY_MODEL_PATH = "/Users/dohyun/Desktop/캡스톤/0407/models/classify_finetuned"
+EMBED_MODEL_PATH    = "/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/models/embed_finetuned"
+SUMMARY_MODEL_PATH  = "/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/models/summary_finetuned"
+CLASSIFY_MODEL_PATH = "/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/models/classify_finetuned"
 BASE_MODEL_EMBED    = "jhgan/ko-sroberta-multitask"
-CHROMA_DB_PATH      = "/Users/dohyun/Desktop/캡스톤/0407/chroma_db"
-NOTICES_CACHE_PATH  = "/Users/dohyun/Desktop/캡스톤/0407/data/notices_cache.json"
+CHROMA_DB_PATH      = "/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/chroma_db"
+NOTICES_CACHE_PATH  = "/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/data/notices_cache.json"
 
 BOARD_LIST_URL = "https://www.hansung.ac.kr/bbs/hansung/2127/artclList.do"
 HEADERS        = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
@@ -55,7 +55,7 @@ _CATEGORY_PATTERN = re.compile(
 )
 _SUFFIX_PATTERN = re.compile(r"\s*(새글|hot|NEW)\s*$", re.IGNORECASE)
 
-os.makedirs("/Users/dohyun/Desktop/캡스톤/0407/data", exist_ok=True)
+os.makedirs("/Users/dohyun/Desktop/캡스톤/qa_dataset_generation/data", exist_ok=True)
 os.makedirs(CHROMA_DB_PATH, exist_ok=True)
 
 

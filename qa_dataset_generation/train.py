@@ -255,11 +255,14 @@ def _qa_from_notice_local(qwen_pipe, title: str, body: str) -> list:
     try:
         result = qwen_pipe(
             messages,
-            max_new_tokens=80,  # 질문 3개 생성에 150은 과함 → 80으로 단축 (속도 향상)
+            max_new_tokens=200,  # 한국어 질문 3개가 잘리지 않도록 여유 확보
         )
         output = result[0]["generated_text"][-1]["content"]
         questions = [q.strip() for q in output.strip().split("\n") if len(q.strip()) > 5]
-        return questions[:3]
+        generated = questions[:3]
+        if len(generated) < 3:
+            print(f"    ⚠️ 질문 {len(generated)}개만 생성됨 (목표: 3개)")
+        return generated
     except Exception:
         return []
 
@@ -386,30 +389,40 @@ def generate_synthetic_qa_fallback(notices: list) -> list:
     API 없이 쓸 수 있는 폴백용 템플릿 QA 생성.
     generate_qa_with_api() 실패 시 또는 API 키 없을 때 사용.
     품질은 낮지만 파인튜닝 자체는 가능.
+
+    공지당 서로 다른 질문 유형만 추가하여 positive가 동일한 중복 쌍을 최소화.
+    (MultipleNegativesRankingLoss in-batch false negative 방지)
     """
     pairs = []
     for notice in notices:
         title = notice["title"]
         body  = notice.get("body", "")
         text  = f"제목: {title}\n{body[:300]}"
-        cat   = notice.get("category", "기타")
 
-        # 제목 직접 활용 (공지별 고유성 보장)
-        pairs.append({"query": f"{title} 알려줘", "positive": text})
-        pairs.append({"query": f"{title}에 대해 설명해줘", "positive": text})
+        # 공지당 질문 유형을 다양하게 — positive 동일 중복을 피하기 위해
+        # 질문마다 본문 청크를 달리하여 positive도 구분
+        body_chunks = [body[:300], body[100:400], body[200:500]]
+
+        queries = [f"{title} 알려줘"]
 
         # 날짜 추출 → 기간/마감 질문
         dates = re.findall(r"\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}", body)
         if dates:
-            pairs.append({"query": f"{title} 신청 기간 언제야?", "positive": text})
+            queries.append(f"{title} 신청 기간 언제야?")
 
         # 금액 추출 → 금액 질문
         if re.search(r"\d+만원|\d+원", body):
-            pairs.append({"query": f"{title} 금액 얼마야?", "positive": text})
+            queries.append(f"{title} 금액 얼마야?")
 
         # 대상 추출 → 대상 질문
         if any(kw in body for kw in ["학년", "전공", "학과", "재학생", "대학원생"]):
-            pairs.append({"query": f"{title} 신청 대상 알려줘", "positive": text})
+            queries.append(f"{title} 신청 대상 알려줘")
+
+        # 질문마다 다른 본문 청크를 positive로 사용해 중복 방지
+        for i, q in enumerate(queries):
+            chunk = body_chunks[i % len(body_chunks)]
+            positive = f"제목: {title}\n{chunk}"
+            pairs.append({"query": q, "positive": positive})
 
     return pairs
 
@@ -459,18 +472,44 @@ def finetune_embedding(notices: list, qwen_pipe=None):
             json.dump(pairs, f, ensure_ascii=False, indent=2)
     print(f"  Synthetic QA {len(pairs)}쌍 준비 완료")
 
-    train_examples = [InputExample(texts=[p["query"], p["positive"]]) for p in pairs]
-    # ✅ A5000: batch_size 64, num_workers 4, pin_memory
+    # ── 학습/평가 셋 분리 (데이터 리케이지 방지) ─────────────────────
+    import random
+    random.seed(42)
+    shuffled = pairs[:]
+    random.shuffle(shuffled)
+    eval_size   = max(50, int(len(shuffled) * 0.1))  # 10% 또는 최소 50쌍
+    eval_pairs  = shuffled[:eval_size]
+    train_pairs = shuffled[eval_size:]
+    print(f"  학습 {len(train_pairs)}쌍 / 평가 {len(eval_pairs)}쌍 분리 완료")
+
+    # ── In-batch false negative 방지 샘플러 ──────────────────────────
+    # 같은 positive를 가진 쌍이 같은 배치에 들어가면 false negative 발생.
+    # positive 기준으로 그룹화한 뒤 배치 내 중복이 최소화되도록 인터리브.
+    from collections import defaultdict
+    pos_groups: dict = defaultdict(list)
+    for p in train_pairs:
+        pos_groups[p["positive"]].append(p)
+
+    # 그룹별로 1개씩 순환 추출 → 같은 positive가 연속 배치에 들어가지 않음
+    interleaved = []
+    groups = list(pos_groups.values())
+    max_len = max(len(g) for g in groups)
+    for i in range(max_len):
+        for g in groups:
+            if i < len(g):
+                interleaved.append(g[i])
+
+    train_examples = [InputExample(texts=[p["query"], p["positive"]]) for p in interleaved]
+    # ✅ A5000: batch_size 64, num_workers 4, pin_memory / shuffle=False (순서 유지)
     train_dataloader = DataLoader(
-        train_examples, shuffle=True, batch_size=64,
+        train_examples, shuffle=False, batch_size=64,
         num_workers=4, pin_memory=True,
     )
 
     model = SentenceTransformer(BASE_MODEL_EMBED)
     loss  = losses.MultipleNegativesRankingLoss(model)
 
-    # InformationRetrievalEvaluator: corpus 중복 제거 후 매핑
-    eval_pairs      = pairs[:50]
+    # InformationRetrievalEvaluator: 학습과 분리된 eval_pairs 사용
     unique_ep       = list(dict.fromkeys(p["positive"] for p in eval_pairs))
     ep_corpus_to_id = {text: str(idx) for idx, text in enumerate(unique_ep)}
     ir_queries  = {str(i): p["query"]                 for i, p in enumerate(eval_pairs)}
