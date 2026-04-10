@@ -8,6 +8,8 @@ from bs4 import BeautifulSoup
 from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
 from datetime import datetime
 
+from crawler import get_post_content  # noqa: E402  (중복 구현 제거)
+
 import streamlit as st
 
 warnings.filterwarnings("ignore")
@@ -26,13 +28,37 @@ BOARD_LIST_URL = "https://www.hansung.ac.kr/bbs/hansung/2127/artclList.do"
 HEADERS        = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 TARGET_YEAR    = str(datetime.now().year)
 
-CATEGORIES = ["장학", "비교과", "수업", "취업", "기타"]
+CATEGORIES = ["취업/채용", "인턴십", "장학금", "학자금/근로장학", "학사행정",
+              "창업", "국제교류", "교육/특강", "비교과", "공모전/경진대회",
+              "봉사/서포터즈", "기타"]
 
+# 1단계: 제목 prefix → 카테고리 직매핑
+CATEGORY_PREFIX = {
+    "채용정보":   "취업/채용",
+    "강소기업채용": "취업/채용",
+    "인턴쉽":    "인턴십",
+    "교외장학금":  "장학금",
+    "국가장학금":  "장학금",
+    "학자금대출":  "학자금/근로장학",
+    "국가근로":   "학자금/근로장학",
+    "면학근로":   "학자금/근로장학",
+    "공모전":    "공모전/경진대회",
+    "정보":      "공모전/경진대회",
+}
+
+# 2단계: 제목 → 본문 순 키워드 매칭
 CATEGORY_KEYWORDS = {
-    "장학":   ["장학", "등록금", "지원금", "장학생", "장학금"],
-    "비교과": ["비교과", "프로그램", "특강", "세미나", "경진대회", "챌린지", "동아리"],
-    "수업":   ["수업", "강의", "학사", "수강", "시간표", "휴강", "과목", "강좌"],
-    "취업":   ["취업", "채용", "인턴", "박람회", "직무", "기업", "공채", "면접"],
+    "비교과":       ["비교과"],
+    "취업/채용":    ["채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고", "직무", "채용연계", "일반채용", "추천채용"],
+    "인턴십":       ["인턴", "인턴십", "일경험", "체험형", "현장실습", "IPP"],
+    "장학금":       ["장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업", "스칼라십", "장학지원"],
+    "학자금/근로장학": ["학자금대출", "학자금", "이자지원", "국가근로", "면학근로", "근로장학", "대출이자"],
+    "학사행정":     ["수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경", "성적", "폐강", "복수전공", "부전공", "휴복학"],
+    "창업":         ["창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤", "입주기업", "예비창업"],
+    "국제교류":     ["교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학", "글로컬"],
+    "교육/특강":    ["특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정", "역량강화"],
+    "공모전/경진대회": ["공모전", "경진대회", "챌린지", "해커톤", "대회", "공모"],
+    "봉사/서포터즈": ["서포터즈", "봉사", "멘토", "봉사자", "기자단", "자원활동", "멘토단", "멘토링", "자원봉사"],
 }
 
 _CATEGORY_PATTERN = re.compile(
@@ -100,10 +126,21 @@ def clean_title(raw: str) -> str:
 
 
 def infer_category(title: str, body: str) -> str:
-    text = title + " " + body
-    for cat, keywords in CATEGORY_KEYWORDS.items():
-        if any(kw in text for kw in keywords):
+    # 1단계: prefix 직매핑
+    for prefix, cat in CATEGORY_PREFIX.items():
+        if title.startswith(prefix):
             return cat
+
+    # 2단계: 제목 키워드 우선
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in title for kw in keywords):
+            return cat
+
+    # 3단계: 본문 키워드 fallback
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in body for kw in keywords):
+            return cat
+
     return "기타"
 
 
@@ -114,74 +151,7 @@ def tokenize_ko(text: str) -> list:
 # ============================================================
 # 크롤러
 # ============================================================
-
-def _ocr_image(img_url: str) -> str:
-    try:
-        import pytesseract
-        from PIL import Image
-        from io import BytesIO
-        import platform
-        if platform.system() == "Windows":
-            pytesseract.pytesseract.tesseract_cmd = (
-                r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-            )
-        res = requests.get(img_url, headers=HEADERS, timeout=10)
-        res.raise_for_status()
-        img  = Image.open(BytesIO(res.content))
-        text = pytesseract.image_to_string(img, lang="kor+eng")
-        return text.strip()
-    except Exception as e:
-        print(f"    ⚠️ OCR 실패 ({img_url[:50]}): {e}")
-        return ""
-
-
-def _extract_pdf(pdf_url: str) -> str:
-    try:
-        import pdfplumber
-        from io import BytesIO
-        res = requests.get(pdf_url, headers=HEADERS, timeout=15)
-        res.raise_for_status()
-        with pdfplumber.open(BytesIO(res.content)) as pdf:
-            pages = [p.extract_text() or "" for p in pdf.pages[:10]]
-        return " ".join(pages).strip()
-    except Exception as e:
-        print(f"    ⚠️ PDF 추출 실패 ({pdf_url[:50]}): {e}")
-        return ""
-
-
-def get_post_content(url: str) -> str:
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        res.raise_for_status()
-        soup = BeautifulSoup(res.text, "html.parser")
-        div  = soup.select_one(".txt")
-        parts = []
-        if div:
-            text = div.get_text(" ", strip=True)
-            if text:
-                parts.append(text)
-            for img in div.find_all("img"):
-                src = img.get("src", "")
-                if not src:
-                    continue
-                if src.startswith("/"):
-                    src = "https://www.hansung.ac.kr" + src
-                ocr_text = _ocr_image(src)
-                if ocr_text:
-                    parts.append(f"[이미지 OCR] {ocr_text}")
-        BASE = "https://www.hansung.ac.kr"
-        for a in soup.find_all("a", href=True):
-            href     = a["href"]
-            filename = a.get_text(strip=True).lower()
-            if "download.do" in href and filename.endswith(".pdf"):
-                pdf_url  = BASE + href if href.startswith("/") else href
-                pdf_text = _extract_pdf(pdf_url)
-                if pdf_text:
-                    parts.append(f"[첨부PDF] {pdf_text[:1000]}")
-        return " ".join(parts)
-    except Exception as e:
-        print(f"  ⚠️ 본문 크롤링 실패: {e}")
-        return ""
+# _ocr_image, _extract_pdf, get_post_content → crawler.py 참고
 
 
 def get_list_page(page: int):
