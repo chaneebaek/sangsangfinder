@@ -10,6 +10,54 @@ Hansung University notice search & recommendation system using RAG pipeline.
 
 ---
 
+## Quick Start
+
+```bash
+# 앱 실행
+streamlit run app.py
+
+# 크롤링 (로컬)
+python crawler.py
+
+# 크롤링 (Colab용)
+# colab_crawl.py 를 Colab에 업로드 후 실행
+
+# 임베딩 학습 (Colab)
+python train.py
+
+# 테스트
+pytest tests/ -v --tb=short
+```
+
+---
+
+## Environment
+
+```bash
+# 필수 환경변수 (.env 파일에 저장)
+GEMINI_API_KEY=...
+```
+
+- Python 3.10+ 권장
+- `pip install -r requirements.txt`
+- GPU 환경(Colab T4)에서 `train.py` 실행 권장
+
+---
+
+## Key Files
+
+| 파일 | 역할 |
+|------|------|
+| `app.py` | Streamlit UI + RAG 파이프라인 진입점 |
+| `crawler.py` | 한성대 공지사항 크롤러 |
+| `colab_crawl.py` | Colab 환경용 크롤러 |
+| `train.py` | 임베딩/요약/분류 모델 파인튜닝 (Colab) |
+| `crawl_2025_titles.py` | 2025년 공지 제목 수집 스크립트 |
+| `embedding_search_v1.py` | 임베딩 검색 초기 구현 |
+| `qa_dataset_generation/` | QA 데이터셋 생성 파이프라인 |
+
+---
+
 ## Claude Behavior (Token Efficiency)
 
 - 행동 전 먼저 생각하라. 코드 작성 전 기존 파일을 읽어라.
@@ -59,6 +107,9 @@ test_eval_pipeline.py # split 격리 검증 포함
 pytest tests/ -v --tb=short
 ```
 
+> **TODO**: `tests/` 디렉토리 미생성. 신규 기능 추가 시 아래 구조로 생성:
+> `test_chunker.py`, `test_retriever.py`, `test_reranker.py`, `test_eval_pipeline.py`
+
 ---
 
 ## Workflow Rules
@@ -66,6 +117,10 @@ pytest tests/ -v --tb=short
 - **새 컴포넌트 추가 시**: 테스트 → 구현 → 문서 순서 준수
 - **평가 지표 보고 시**: split 명시 없이는 숫자만 말하지 않기
 - **파이프라인 변경 시**: 상·하류 단계 인터페이스 영향 먼저 확인
+- **10건 이상의 대규모 작업 시**: 10개 이하로 실행해서 파이프라인이 정상 동작하는지 확인하고 대규모 작업 수행
+- **출력 파일(JSONL 등) 작성 시**: 항상 `"a"` 모드로 열어라. 토큰 부족·중단 등으로 재실행 시 기존 결과가 사라지지 않도록 한다.
+  - 재실행 시 중복 방지: 기존 파일에서 처리된 항목(e.g. `notice_title`)을 set으로 읽어 건너뜀
+  - JSON 캐시 파일(`notices_cache.json` 등 전체를 덮어쓰는 파일)은 예외적으로 `"w"` 유지
 
 ---
 
@@ -78,3 +133,5 @@ pytest tests/ -v --tb=short
 ## Known Pitfalls
 - [ ] 과거 사례: test/val 분리 없이 전체 데이터로 Recall@K 계산 → 지표 신뢰 불가
       → 방지책: `test_eval_pipeline.py`에서 split 격리 assertion 필수
+- [ ] `app.py`에 `/Users/dohyun/...` 절대경로 하드코딩됨
+      → 실행 환경에 맞게 상단 경로 상수를 반드시 수정해야 함

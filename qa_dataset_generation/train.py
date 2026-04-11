@@ -21,7 +21,7 @@ BASE_MODEL_CLS     = "klue/bert-base"
 EMBED_MODEL_PATH    = "./models/embed_finetuned"
 CLASSIFY_MODEL_PATH = "./models/classify_finetuned"
 
-NOTICES_CACHE_PATH  = "./data/notices_cache.json"
+NOTICES_CACHE_PATH  = "./data/2026_notice.json"
 SYNTHETIC_QA_PATH   = "./data/synthetic_qa.json"
 DRIVE_SAVE_PATH     = "./saved_models"  # ✅ 로컬/클라우드 범용 경로
 

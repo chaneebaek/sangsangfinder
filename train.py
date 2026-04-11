@@ -58,7 +58,7 @@ BASE_MODEL_CLS     = "klue/bert-base"
 EMBED_MODEL_PATH    = "./models/embed_finetuned"
 CLASSIFY_MODEL_PATH = "./models/classify_finetuned"
 
-NOTICES_CACHE_PATH  = "./data/notices_cache.json"
+NOTICES_CACHE_PATH  = "./data/2026_notice.json"
 SYNTHETIC_QA_PATH   = "./data/synthetic_qa.json"
 DRIVE_SAVE_PATH     = "./saved_models"  # ✅ 로컬/클라우드 범용 경로
 
@@ -80,19 +80,53 @@ CATEGORY_PREFIX = {
     "정보":      "공모전/경진대회",
 }
 
-# 2단계: 제목 → 본문 순 키워드 매칭
+# 2단계: 제목 → 본문 순 키워드 매칭 (app.py와 동기화 유지)
 CATEGORY_KEYWORDS = {
-    "비교과":       ["비교과"],
-    "취업/채용":    ["채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고", "직무", "채용연계", "일반채용", "추천채용"],
-    "인턴십":       ["인턴", "인턴십", "일경험", "체험형", "현장실습", "IPP"],
-    "장학금":       ["장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업", "스칼라십", "장학지원"],
-    "학자금/근로장학": ["학자금대출", "학자금", "이자지원", "국가근로", "면학근로", "근로장학", "대출이자"],
-    "학사행정":     ["수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경", "성적", "폐강", "복수전공", "부전공", "휴복학"],
-    "창업":         ["창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤", "입주기업", "예비창업"],
-    "국제교류":     ["교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학", "글로컬"],
-    "교육/특강":    ["특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정", "역량강화"],
-    "공모전/경진대회": ["공모전", "경진대회", "챌린지", "해커톤", "대회", "공모"],
-    "봉사/서포터즈": ["서포터즈", "봉사", "멘토", "봉사자", "기자단", "자원활동", "멘토단", "멘토링", "자원봉사"],
+    "ROTC":           ["ROTC", "학군사관", "학군단", "현역병 모집", "현역병모집", "예비군", "전문사관",
+                      "재병역판정검사"],
+    "기숙사/생활관":   ["기숙사", "생활관", "상상빌리지", "우촌학사", "임대기숙사", "사감",
+                      "입사생 선발", "대학생주택", "학사관"],
+    "비교과":         ["비교과", "동아리", "D-School", "포럼", "대동제", "영상제", "입학식",
+                      "HS CREW", "상상파크", "라이프 디자인", "문화탐방", "만우절", "오찬 소통",
+                      "Lunch with", "천원의 아침밥", "ESG", "진로집단상담", "리더십 탐험",
+                      "학생축제", "문화제", "페스티벌", "소모임",
+                      "디즈니 프로그램", "디즈니프로그램", "FSU-Disney", "Disney",
+                      "새내기 새로배움터", "새로배움터", "총학생회",
+                      "사진전", "영상·사진전", "진로 설명회", "트랙 진로"],
+    "취업/채용":      ["채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고", "직무", "채용연계", "일반채용", "추천채용"],
+    "인턴십":         ["인턴", "인턴십", "일경험", "체험형", "현장실습", "IPP"],
+    "장학금":         ["장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업", "스칼라십", "장학지원"],
+    "학자금/근로장학": ["학자금대출", "학자금", "이자지원", "국가근로", "면학근로", "근로장학", "대출이자",
+                      "등록금 납부", "등록금 분할", "학기초과자 등록금"],
+    "학사행정":       ["수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경", "성적", "폐강", "복수전공", "부전공", "휴복학",
+                      "재입학", "연계전공", "Micro Degree", "MD과정", "교양영어", "이수신청",
+                      "트랙선택", "계절학기", "수업평가", "학위취득유예", "수강포기", "서면신청", "서면 신청",
+                      "교차전부", "교차 전부", "편입생", "전부(과)", "학위수여식", "학사학위취득",
+                      "오리엔테이션", "반편성고사", "합격자 공고", "합격자공고", "합격자 발표", "합격자발표",
+                      "선발 결과", "선발결과", "이수 면제", "이수면제", "수업운영 안내", "출결",
+                      "중간고사", "기말고사", "전공과목 변경", "전공변경", "다전공 신청",
+                      "학석사연계", "합격자 공지", "합격자공지",
+                      "학사경고", "자기설계전공", "교양필수", "상상력이노베이터"],
+    "창업":           ["창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤", "입주기업", "예비창업",
+                      "학생 CEO", "CEO 발굴"],
+    "국제교류":       ["교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학", "글로컬",
+                      "글로벌 튜터링", "글로벌 Conversation", "글로벌 컨버세이션", "글로벌 문화 소통",
+                      "단기연수", "단기 연수", "K-Move", "WEST 연수", "한·미대학생",
+                      "글로벌 동행", "글로벌동행"],
+    "교육/특강":      ["특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정", "역량강화",
+                      "평생교육", "RISE", "마이크로디그리", "TOPCIT", "연구방법론",
+                      "초청강연", "특별강연", "핵심역량진단", "HS-CESA", "K-CESA", "UICA", "K-NSSE",
+                      "폭력예방교육", "필수교육", "전문과정", "SW마에스트로", "코딩 캠프", "코딩캠프",
+                      "신규 교과목", "재정데이터", "직업흥미검사", "심리증진",
+                      "연구윤리", "워크숍", "진로지도시스템", "진로 캠프", "진로캠프",
+                      "심폐소생술", "저작권", "청년인생설계", "기초역량 가이드", "미디어 클래스",
+                      "과학살롱", "기초학문"],
+    "공모전/경진대회": ["공모전", "경진대회", "챌린지", "해커톤", "대회", "공모", "문학상"],
+    "봉사/서포터즈":  ["서포터즈", "서포터스", "봉사", "멘토", "봉사자", "기자단", "자원활동", "멘토단", "멘토링", "자원봉사",
+                      "홍보대사", "하랑", "소통-e", "앰버서더", "방송국 HBS", "홍보단",
+                      "수습기자", "운영자문위원", "모니터링단", "자문단",
+                      "바로알림단", "기획단", "체험단", "발굴단", "순찰대", "제작단",
+                      "자원지도자", "볼런톤", "청백리포터", "Friends of Korea"],
 }
 
 _CATEGORY_PATTERN = re.compile(
@@ -195,78 +229,11 @@ def get_list_page(page: int):
         return [], False
 
 
-def load_qwen_model():
-    """
-    Qwen2.5-7B-Instruct 로컬 모델 로드.
-    한국어 QA 생성용. T4 GPU(15GB) 기준 약 14GB 사용.
-    최초 1회 로드 후 재사용 권장.
-
-    사용법:
-        qwen = load_qwen_model()
-        crawl_all(qwen_pipe=qwen)
-    """
-    from transformers import pipeline
-    import torch
-
-    print("  🤖 Qwen2.5-7B-Instruct 로드 중... (최초 1회, 수 분 소요)")
-    pipe = pipeline(
-        "text-generation",
-        model="Qwen/Qwen2.5-7B-Instruct",
-        torch_dtype=torch.bfloat16,  # A5000: bfloat16이 더 안정적
-        device_map="auto",
-    )
-    print("  ✅ Qwen 모델 로드 완료")
-    return pipe
-
-
-def _qa_from_notice_local(qwen_pipe, title: str, body: str) -> list:
-    """공지 1건에 대해 Qwen2.5-7B로 고유 질문 3개 생성"""
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                "너는 한국어 질문 생성 전문가야. "
-                "주어진 공지사항을 읽고, 오직 이 공지에서만 답할 수 있는 구체적인 질문 3개를 만들어. "
-                "날짜, 금액, 신청 대상, 장소, 방법, 기간 등 공지의 구체적인 정보를 질문에 포함시켜. "
-                "질문만 줄바꿈으로 구분해서 출력해. 번호나 기호 없이."
-            )
-        },
-        {
-            "role": "user",
-            "content": f"공지 제목: {title}\n공지 내용: {body[:400]}"
-        }
-    ]
-    try:
-        result = qwen_pipe(
-            messages,
-            max_new_tokens=80,  # 질문 3개 생성에 150은 과함 → 80으로 단축 (속도 향상)
-        )
-        output = result[0]["generated_text"][-1]["content"]
-        questions = [q.strip() for q in output.strip().split("\n") if len(q.strip()) > 5]
-        return questions[:3]
-    except Exception:
-        return []
-
-
-def crawl_all(qwen_pipe=None) -> list:
-    """
-    공지 크롤링 + QA 동시 생성.
-    qwen_pipe: load_qwen_model() 로 로드한 Qwen2.5-7B 파이프라인
-               있으면 크롤링과 동시에 고품질 QA 생성
-               없으면 크롤링만 하고 QA는 finetune_embedding() 시점에 폴백 생성
-
-    사용법:
-        notices = crawl_all()                    # QA 없이 크롤링만
-        qwen = load_qwen_model()
-        notices = crawl_all(qwen_pipe=qwen)      # 크롤링 + QA 동시 생성 (권장)
-    """
+def crawl_all() -> list:
+    """공지 크롤링. 사용법: notices = crawl_all()"""
     all_items, page = [], 1
-    qa_pairs = []
 
-    if qwen_pipe:
-        print(f"📋 {TARGET_YEAR}년 공지 수집 + QA 생성 시작 (Qwen2.5-7B 사용)...")
-    else:
-        print(f"📋 {TARGET_YEAR}년 공지 수집 시작 (QA는 파인튜닝 시점에 생성)...")
+    print(f"📋 {TARGET_YEAR}년 공지 수집 시작...")
 
     # 목록 수집
     while True:
@@ -279,40 +246,17 @@ def crawl_all(qwen_pipe=None) -> list:
         page += 1
         time.sleep(0.3)
 
-    # 본문 크롤링 + QA 생성
+    # 본문 크롤링
     print(f"  → 본문 크롤링 시작...")
     for i, item in enumerate(all_items):
         item["body"]     = get_post_content(item["url"])
         item["category"] = infer_category(item["title"], item["body"])
-        print(f"  [{i+1}/{len(all_items)}] [{item['category']}] {item['title'][:40]}", end="")
+        print(f"  [{i+1}/{len(all_items)}] [{item['category']}] {item['title'][:40]}")
+        time.sleep(0.3)
 
-        # Qwen 있으면 바로 QA 생성
-        if qwen_pipe and item["body"]:
-            text = f"제목: {item['title']}\n{item['body'][:500]}"
-            questions = _qa_from_notice_local(qwen_pipe, item["title"], item["body"])
-            if questions:
-                for q in questions:
-                    qa_pairs.append({"query": q, "positive": text})
-                print(f" → QA {len(questions)}개", end="")
-            else:
-                # API 실패 시 제목 기반 폴백
-                qa_pairs.append({"query": f"{item['title']} 알려줘", "positive": text})
-                print(f" → 폴백", end="")
-        print()
-        time.sleep(0.3)  # 크롤링 + API 딜레이 합산
-
-    # 캐시 저장
     with open(NOTICES_CACHE_PATH, "w", encoding="utf-8") as f:
         json.dump(all_items, f, ensure_ascii=False, indent=2)
     print(f"\n✅ 공지 캐시 저장: {NOTICES_CACHE_PATH} ({len(all_items)}건)")
-
-    # QA 저장 (생성된 경우만)
-    if qa_pairs:
-        with open(SYNTHETIC_QA_PATH, "w", encoding="utf-8") as f:
-            json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
-        print(f"✅ QA 저장: {SYNTHETIC_QA_PATH} ({len(qa_pairs)}쌍)\n")
-    else:
-        print(f"  → QA는 finetune_embedding() 시점에 생성됩니다.\n")
 
     return all_items
 
@@ -328,88 +272,8 @@ def load_notices_cache() -> list:
 # 파인튜닝 1 — 임베딩 모델 (Contrastive Learning)
 # ============================================================
 
-def generate_qa_with_qwen(notices: list, qwen_pipe) -> list:
-    """
-    Qwen2.5-7B-Instruct로 각 공지마다 고유한 질문 3개 생성.
-    완전 무료, 로컬 실행, 한국어 품질 우수.
-
-    사용법:
-        qwen = load_qwen_model()
-        pairs = generate_qa_with_qwen(notices, qwen_pipe=qwen)
-    """
-    pairs  = []
-    failed = 0
-
-    print(f"  🤖 Qwen2.5-7B로 QA 생성 중... (총 {len(notices)}건)")
-    for i, notice in enumerate(notices):
-        title = notice["title"]
-        body  = notice.get("body", "")
-        text  = f"제목: {title}\n{body[:500]}"
-
-        if not body or len(body) < 20:
-            pairs.append({"query": f"{title} 알려줘", "positive": text})
-            continue
-
-        questions = _qa_from_notice_local(qwen_pipe, title, body)
-        if questions:
-            for q in questions:
-                pairs.append({"query": q, "positive": text})
-        else:
-            failed += 1
-            pairs.append({"query": f"{title} 알려줘", "positive": text})
-
-        if (i + 1) % 50 == 0:
-            print(f"    {i+1}/{len(notices)}건 완료 (누적 {len(pairs)}쌍)")
-
-    print(f"  ✅ QA 생성 완료 — {len(pairs)}쌍 / 실패: {failed}건")
-    return pairs
-
-
-def generate_synthetic_qa_fallback(notices: list) -> list:
-    """
-    API 없이 쓸 수 있는 폴백용 템플릿 QA 생성.
-    generate_qa_with_api() 실패 시 또는 API 키 없을 때 사용.
-    품질은 낮지만 파인튜닝 자체는 가능.
-    """
-    pairs = []
-    for notice in notices:
-        title = notice["title"]
-        body  = notice.get("body", "")
-        text  = f"제목: {title}\n{body[:300]}"
-        cat   = notice.get("category", "기타")
-
-        # 제목 직접 활용 (공지별 고유성 보장)
-        pairs.append({"query": f"{title} 알려줘", "positive": text})
-        pairs.append({"query": f"{title}에 대해 설명해줘", "positive": text})
-
-        # 날짜 추출 → 기간/마감 질문
-        dates = re.findall(r"\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}", body)
-        if dates:
-            pairs.append({"query": f"{title} 신청 기간 언제야?", "positive": text})
-
-        # 금액 추출 → 금액 질문
-        if re.search(r"\d+만원|\d+원", body):
-            pairs.append({"query": f"{title} 금액 얼마야?", "positive": text})
-
-        # 대상 추출 → 대상 질문
-        if any(kw in body for kw in ["학년", "전공", "학과", "재학생", "대학원생"]):
-            pairs.append({"query": f"{title} 신청 대상 알려줘", "positive": text})
-
-    return pairs
-
-
-def finetune_embedding(notices: list, qwen_pipe=None):
-    """
-    qwen_pipe: load_qwen_model() 로 로드한 Qwen2.5-7B 파이프라인
-               있으면 고품질 QA 생성 (crawl_all에서 이미 생성했으면 자동 재사용)
-               없으면 폴백 방식 사용
-
-    사용법:
-        qwen = load_qwen_model()
-        finetune_embedding(notices, qwen_pipe=qwen)
-        # 또는 crawl_all(qwen_pipe=qwen) 으로 이미 QA 생성했으면
-        finetune_embedding(notices)  ← 자동 재사용
-    """
+def finetune_embedding(notices: list):
+    """synthetic_qa.json 로드 후 임베딩 모델 파인튜닝."""
     from sentence_transformers import SentenceTransformer, InputExample, losses
     from sentence_transformers.evaluation import InformationRetrievalEvaluator
     from torch.utils.data import DataLoader
@@ -418,29 +282,15 @@ def finetune_embedding(notices: list, qwen_pipe=None):
     print("🔧 [1/2] 임베딩 모델 파인튜닝 시작")
     print("=" * 55)
 
-    # ── QA 로드 or 생성 ───────────────────────────────────────
-    # crawl_all(qwen_pipe=...) 로 이미 생성된 QA가 있으면 재사용
-    # 없으면 Qwen 또는 폴백으로 새로 생성
-    existing_qa = load_synthetic_qa()
-    if existing_qa:
-        print(f"  ♻️  기존 QA 재사용 — {len(existing_qa)}쌍 (crawl_all 시 생성된 것)")
-        pairs = existing_qa
-    elif qwen_pipe:
-        print("  🤖 Qwen2.5-7B 사용 — 공지별 고유 QA 생성")
-        pairs = generate_qa_with_qwen(notices, qwen_pipe=qwen_pipe)
-    else:
-        print("  ⚠️ Qwen 모델 없음 — 폴백 방식 사용")
-        print("     고품질 학습 원하면: qwen=load_qwen_model() 후 재실행")
-        pairs = generate_synthetic_qa_fallback(notices)
+    pairs = load_synthetic_qa()
+    if not pairs:
+        print(f"⚠️ {SYNTHETIC_QA_PATH} 없음 — QA 생성 후 재실행")
+        return
 
     if len(pairs) < 10:
         print(f"⚠️ 학습 데이터 부족 ({len(pairs)}쌍) — 중단")
         return
 
-    # QA 저장 (새로 생성한 경우만)
-    if not existing_qa:
-        with open(SYNTHETIC_QA_PATH, "w", encoding="utf-8") as f:
-            json.dump(pairs, f, ensure_ascii=False, indent=2)
     print(f"  Synthetic QA {len(pairs)}쌍 준비 완료")
 
     train_examples = [InputExample(texts=[p["query"], p["positive"]]) for p in pairs]
@@ -694,52 +544,24 @@ def load_synthetic_qa() -> list:
 # 전체 파인튜닝 래퍼 — RAM 부족 방지용
 # ============================================================
 
-def finetune_all(notices: list, qwen_pipe=None):
+def finetune_all(notices: list):
     """
     임베딩 + 분류 모델을 순서대로 파인튜닝.
-    각 단계 후 모델/데이터 메모리를 명시적으로 해제해서
-    연속 실행 시 RAM 부족 세션 다운 방지.
-
-    qwen_pipe: load_qwen_model() 로 로드한 Qwen2.5-7B 파이프라인
-               crawl_all(qwen_pipe=...) 로 이미 QA 생성했으면 None으로 호출해도 됨
-    사용법:
-        # QA가 이미 생성된 경우 (crawl_all(qwen_pipe=qwen) 실행 후)
-        finetune_all(notices)
-
-        # QA 없이 finetune_all 실행하는 경우
-        qwen = load_qwen_model()
-        finetune_all(notices, qwen_pipe=qwen)
+    사용법: finetune_all(notices)  ← synthetic_qa.json 미리 생성 필요
     """
-    import gc, torch, json
+    import gc, torch
 
     print("🚀 전체 파인튜닝 시작 (메모리 절약 모드)")
     print(f"  공지 {len(notices)}건 로드됨")
 
-    # 🚨 수정: QA 생성을 Qwen 해제 전에 먼저 실행 → 저장 후 해제
-    if qwen_pipe is not None:
-        if not load_synthetic_qa():  # 기존 캐시 없을 때만 생성
-            print("  🤖 VRAM 해제 전 Qwen2.5-7B로 QA 데이터 우선 생성 중...")
-            pairs = generate_qa_with_qwen(notices, qwen_pipe=qwen_pipe)
-            with open(SYNTHETIC_QA_PATH, "w", encoding="utf-8") as f:
-                json.dump(pairs, f, ensure_ascii=False, indent=2)
-            print(f"  ✅ QA {len(pairs)}쌍 생성 및 저장 완료")
-        else:
-            print("  ♻️  기존 QA 재사용")
-
-        print("  🧹 학습 전 Qwen 파이프라인 메모리 해제 중...")
-        del qwen_pipe
-        qwen_pipe = None
-        gc.collect()
-        torch.cuda.empty_cache()
-        print("  ✅ Qwen 메모리 해제 완료\n")
-    elif load_synthetic_qa():
+    if load_synthetic_qa():
         print("  ♻️  기존 QA 재사용\n")
     else:
-        print("  ⚠️ Qwen 없음 — 폴백 방식으로 QA 생성\n")
+        print("  ⚠️ synthetic_qa.json 없음 — QA 생성 후 재실행\n")
+        return
 
     # ── 1. 임베딩 ──────────────────────────────────────────
-    # Qwen은 이미 해제되었으므로 None 전달 (저장된 QA 자동 재사용)
-    finetune_embedding(notices, qwen_pipe=None)
+    finetune_embedding(notices)
     gc.collect()
     torch.cuda.empty_cache()
     print(f"  RAM 여유 확보 후 분류 모델 시작\n")
@@ -794,10 +616,8 @@ if __name__ == "__main__":
     print("사용 가능한 함수:")
     print("  notices = crawl_all()")
     print("  notices = load_notices_cache()  ← 캐시 재사용")
-    print("  qwen = load_qwen_model()                      ← Qwen2.5-7B 로드")
-    print("  notices = crawl_all(qwen_pipe=qwen)           ← 크롤링 + QA 동시 생성")
-    print("  finetune_all(notices)                         ← QA 자동 재사용")
-    print("  finetune_embedding(notices, qwen_pipe=qwen)   ← 임베딩만")
-    print("  finetune_classify(notices)                    ← 분류만")
-    print("  evaluate_embedding(notices)      ← 파인튜닝 전후 Recall@K, MRR 비교")
+    print("  finetune_all(notices)           ← synthetic_qa.json 미리 생성 필요")
+    print("  finetune_embedding(notices)     ← 임베딩만")
+    print("  finetune_classify(notices)      ← 분류만")
+    print("  evaluate_embedding(notices)     ← 파인튜닝 전후 Recall@K, MRR 비교")
     print("  save_models()")

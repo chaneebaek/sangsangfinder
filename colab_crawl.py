@@ -30,8 +30,8 @@ import requests
 from bs4 import BeautifulSoup
 
 # ── 경로 설정 ────────────────────────────────────────────────
-SOURCE_PATH = '/content/drive/MyDrive/sangsangfinder/notices_cache.json'
-SAVE_PATH   = '/content/drive/MyDrive/sangsangfinder/notices_cache.json'
+SOURCE_PATH = '/content/drive/MyDrive/sangsangfinder/2026_notice.json'
+SAVE_PATH   = '/content/drive/MyDrive/sangsangfinder/2026_notice.json'
 
 # ── Clova OCR 설정 ───────────────────────────────────────────
 # .env를 Drive에 올려뒀다면 아래 주석 해제:
@@ -57,11 +57,67 @@ _NOISE_RE      = re.compile(r"[^\w\s가-힣.,!?%\-:/()\[\]@#&*+]")
 _SLICE_HEIGHT  = 1500
 _SLICE_OVERLAP = 100
 
+# 1단계: 제목 prefix → 카테고리 직매핑
+CATEGORY_PREFIX = {
+    "채용정보":    "취업/채용",
+    "강소기업채용": "취업/채용",
+    "인턴쉽":     "인턴십",
+    "교외장학금":  "장학금",
+    "국가장학금":  "장학금",
+    "학자금대출":  "학자금/근로장학",
+    "국가근로":    "학자금/근로장학",
+    "면학근로":    "학자금/근로장학",
+    "공모전":     "공모전/경진대회",
+    "정보":       "공모전/경진대회",
+}
+
+# 2단계: 제목 → 본문 순 키워드 매칭
 CATEGORY_KEYWORDS = {
-    "장학":   ["장학", "등록금", "지원금", "장학생", "장학금"],
-    "비교과": ["비교과", "프로그램", "특강", "세미나", "경진대회", "챌린지", "동아리"],
-    "수업":   ["수업", "강의", "학사", "수강", "시간표", "휴강", "과목", "강좌"],
-    "취업":   ["취업", "채용", "인턴", "박람회", "직무", "기업", "공채", "면접"],
+    "ROTC":           ["ROTC", "학군사관", "학군단", "현역병 모집", "현역병모집", "예비군", "전문사관",
+                      "재병역판정검사"],
+    "기숙사/생활관":   ["기숙사", "생활관", "상상빌리지", "우촌학사", "임대기숙사", "사감",
+                      "입사생 선발", "대학생주택", "학사관"],
+    "비교과":         ["비교과", "동아리", "D-School", "포럼", "대동제", "영상제", "입학식",
+                      "HS CREW", "상상파크", "라이프 디자인", "문화탐방", "만우절", "오찬 소통",
+                      "Lunch with", "천원의 아침밥", "ESG", "진로집단상담", "리더십 탐험",
+                      "학생축제", "문화제", "페스티벌", "소모임",
+                      "디즈니 프로그램", "디즈니프로그램", "FSU-Disney", "Disney",
+                      "새내기 새로배움터", "새로배움터", "총학생회",
+                      "사진전", "영상·사진전", "진로 설명회", "트랙 진로"],
+    "취업/채용":      ["채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고", "직무", "채용연계", "일반채용", "추천채용"],
+    "인턴십":         ["인턴", "인턴십", "일경험", "체험형", "현장실습", "IPP"],
+    "장학금":         ["장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업", "스칼라십", "장학지원"],
+    "학자금/근로장학": ["학자금대출", "학자금", "이자지원", "국가근로", "면학근로", "근로장학", "대출이자",
+                      "등록금 납부", "등록금 분할", "학기초과자 등록금"],
+    "학사행정":       ["수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경", "성적", "폐강", "복수전공", "부전공", "휴복학",
+                      "재입학", "연계전공", "Micro Degree", "MD과정", "교양영어", "이수신청",
+                      "트랙선택", "계절학기", "수업평가", "학위취득유예", "수강포기", "서면신청", "서면 신청",
+                      "교차전부", "교차 전부", "편입생", "전부(과)", "학위수여식", "학사학위취득",
+                      "오리엔테이션", "반편성고사", "합격자 공고", "합격자공고", "합격자 발표", "합격자발표",
+                      "선발 결과", "선발결과", "이수 면제", "이수면제", "수업운영 안내", "출결",
+                      "중간고사", "기말고사", "전공과목 변경", "전공변경", "다전공 신청",
+                      "학석사연계", "합격자 공지", "합격자공지",
+                      "학사경고", "자기설계전공", "교양필수", "상상력이노베이터"],
+    "창업":           ["창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤", "입주기업", "예비창업",
+                      "학생 CEO", "CEO 발굴"],
+    "국제교류":       ["교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학", "글로컬",
+                      "글로벌 튜터링", "글로벌 Conversation", "글로벌 컨버세이션", "글로벌 문화 소통",
+                      "단기연수", "단기 연수", "K-Move", "WEST 연수", "한·미대학생",
+                      "글로벌 동행", "글로벌동행"],
+    "교육/특강":      ["특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정", "역량강화",
+                      "평생교육", "RISE", "마이크로디그리", "TOPCIT", "연구방법론",
+                      "초청강연", "특별강연", "핵심역량진단", "HS-CESA", "K-CESA", "UICA", "K-NSSE",
+                      "폭력예방교육", "필수교육", "전문과정", "SW마에스트로", "코딩 캠프", "코딩캠프",
+                      "신규 교과목", "재정데이터", "직업흥미검사", "심리증진",
+                      "연구윤리", "워크숍", "진로지도시스템", "진로 캠프", "진로캠프",
+                      "심폐소생술", "저작권", "청년인생설계", "기초역량 가이드", "미디어 클래스",
+                      "과학살롱", "기초학문"],
+    "공모전/경진대회": ["공모전", "경진대회", "챌린지", "해커톤", "대회", "공모", "문학상"],
+    "봉사/서포터즈":  ["서포터즈", "서포터스", "봉사", "멘토", "봉사자", "기자단", "자원활동", "멘토단", "멘토링", "자원봉사",
+                      "홍보대사", "하랑", "소통-e", "앰버서더", "방송국 HBS", "홍보단",
+                      "수습기자", "운영자문위원", "모니터링단", "자문단",
+                      "바로알림단", "기획단", "체험단", "발굴단", "순찰대", "제작단",
+                      "자원지도자", "볼런톤", "청백리포터", "Friends of Korea"],
 }
 
 
@@ -271,34 +327,43 @@ def get_post_content(url: str) -> str:
 
 
 def infer_category(title: str, body: str) -> str:
-    text = title + " " + body
-    for cat, kws in CATEGORY_KEYWORDS.items():
-        if any(kw in text for kw in kws):
+    # 1단계: prefix 직매핑
+    for prefix, cat in CATEGORY_PREFIX.items():
+        if title.startswith(prefix):
+            return cat
+    # 2단계: 제목 키워드 우선
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in title for kw in keywords):
+            return cat
+    # 3단계: 본문 키워드 fallback
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        if any(kw in body for kw in keywords):
             return cat
     return "기타"
 
 
 # ── 메인 크롤링 루프 ──────────────────────────────────────────
 
-with open(SOURCE_PATH, encoding="utf-8") as f:
-    notices = json.load(f)
+if __name__ == "__main__":
+    with open(SOURCE_PATH, encoding="utf-8") as f:
+        notices = json.load(f)
 
-total = len(notices)
-print(f"\n총 {total}건 재크롤링 시작...\n")
+    total = len(notices)
+    print(f"\n총 {total}건 재크롤링 시작...\n")
 
-for i, item in enumerate(notices):
-    body             = get_post_content(item["url"])
-    item["body"]     = body
-    item["category"] = infer_category(item["title"], body)
-    print(f"  [{i+1}/{total}] [{item['category']}] {item['title'][:50]}")
-    time.sleep(0.3)
+    for i, item in enumerate(notices):
+        body             = get_post_content(item["url"])
+        item["body"]     = body
+        item["category"] = infer_category(item["title"], body)
+        print(f"  [{i+1}/{total}] [{item['category']}] {item['title'][:50]}")
+        time.sleep(0.3)
 
-    if (i + 1) % 50 == 0:
-        with open(SAVE_PATH, "w", encoding="utf-8") as f:
-            json.dump(notices, f, ensure_ascii=False, indent=2)
-        print(f"  ── 중간 저장 완료 ({i+1}/{total}건) ──")
+        if (i + 1) % 50 == 0:
+            with open(SAVE_PATH, "w", encoding="utf-8") as f:
+                json.dump(notices, f, ensure_ascii=False, indent=2)
+            print(f"  ── 중간 저장 완료 ({i+1}/{total}건) ──")
 
-with open(SAVE_PATH, "w", encoding="utf-8") as f:
-    json.dump(notices, f, ensure_ascii=False, indent=2)
+    with open(SAVE_PATH, "w", encoding="utf-8") as f:
+        json.dump(notices, f, ensure_ascii=False, indent=2)
 
-print(f"\n✅ 완료: {SAVE_PATH} ({total}건 업데이트)")
+    print(f"\n✅ 완료: {SAVE_PATH} ({total}건 업데이트)")
