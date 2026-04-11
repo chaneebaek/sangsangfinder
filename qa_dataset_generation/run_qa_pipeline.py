@@ -1,6 +1,6 @@
 """
 QA Dataset Generation Pipeline (Teacher-Student-Judge)
-notices_cache.json에서 공지 3개를 로드해 QA 데이터셋 생성
+2026_notice.json에서 공지 3개를 로드해 QA 데이터셋 생성
 """
 
 import json
@@ -35,7 +35,7 @@ def get_qa_count(body: str) -> tuple[int, int]:
         return 2, 1  # 총 3개
     return 3, 2      # 총 5개
 
-NOTICES_CACHE_PATH = "./data/notices_cache.json"
+NOTICES_CACHE_PATH = "./data/2026_notice.json"
 OUTPUT_PATH        = "./data/qa_dataset.jsonl"
 
 # ─────────────────────────────────────────
@@ -204,13 +204,39 @@ def format_notice(n: dict) -> str:
     return f"제목: {n['title']}\n날짜: {n['date']}\n카테고리: {n['category']}\n\n{n['body']}"
 
 
+def load_processed_titles(output_path: str) -> set[str]:
+    """이미 처리된 공지 제목 집합 반환 (resume용)"""
+    processed = set()
+    p = Path(output_path)
+    if p.exists():
+        for line in p.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                obj = json.loads(line)
+                if "notice_title" in obj:
+                    processed.add(obj["notice_title"])
+            except json.JSONDecodeError:
+                pass
+    return processed
+
+
 def run_pipeline(notices: list[dict], output_path: str = OUTPUT_PATH):
+    # 출력 파일이 이미 존재하면 append로 열어 기존 결과를 보존
+    processed_titles = load_processed_titles(output_path)
+    if processed_titles:
+        print(f"[Resume] 기존 처리 공지 {len(processed_titles)}건 감지 → 이어서 실행합니다.")
+
     all_qa = []
     stats = {"passed": 0, "total": 0, "hallucinated": 0, "low_quality": 0}
-    out_file = open(Path(output_path), "w", encoding="utf-8")
+    out_file = open(Path(output_path), "a", encoding="utf-8")
 
     try:
         for i, notice_obj in enumerate(notices):
+            if notice_obj["title"] in processed_titles:
+                print(f"\n[{i+1}/{len(notices)}] 건너뜀 (이미 처리됨): {notice_obj['title'][:50]}", flush=True)
+                continue
             notice_str = format_notice(notice_obj)
             print(f"\n[{i+1}/{len(notices)}] {notice_obj['title'][:50]}", flush=True)
 
@@ -279,4 +305,4 @@ if __name__ == "__main__":
     print(f"선택된 공지 {len(notices)}건:")
     for n in notices:
         print(f"  - {n['title'][:60]}")
-    run_pipeline(notices)
+    run_pipeline(notices)  # 출력 파일 존재 시 자동 resume
