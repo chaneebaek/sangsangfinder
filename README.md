@@ -4,9 +4,9 @@
 
 ## 주요 기능
 
-- 한성대 공지사항 RSS 주기적 크롤링 및 ChromaDB 적재
+- 한성대 공지사항 RSS 크롤링 및 ChromaDB 적재 (주기적 크롤링: 우선 x)
 - Hybrid Search: BM25(0.3) + Dense Vector(0.7) 결합 검색
-- Teacher-Student-Judge 구조의 QA 데이터셋 자동 생성
+- QA 생성-Judge 구조로 QA 데이터셋 자동 생성
 - Streamlit UI를 통한 공지사항 검색 인터페이스
 
 ## 기술 스택

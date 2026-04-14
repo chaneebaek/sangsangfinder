@@ -8,6 +8,8 @@ import os
 import time
 from pathlib import Path
 from anthropic import Anthropic
+from google import genai
+from google.genai.types import GenerateContentConfig, ThinkingConfig
 
 # 프로젝트 루트의 .env 로드 (python-dotenv 없이 직접 파싱)
 _env_path = Path(__file__).parent.parent / ".env"
@@ -18,15 +20,16 @@ if _env_path.exists():
             key, _, val = line.partition("=")
             os.environ.setdefault(key.strip(), val.strip())
 
-client = Anthropic()
+teacher_client = Anthropic()
+judge_client   = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 
 # ─────────────────────────────────────────
 # 설정
 # ─────────────────────────────────────────
 TEACHER_MODEL = "claude-sonnet-4-6"
-JUDGE_MODEL   = "claude-haiku-4-5"
+JUDGE_MODEL   = "gemini-2.5-flash"
 
-QUALITY_THRESHOLD = 3
+QUALITY_THRESHOLD = 4
 
 
 def get_qa_count(body: str) -> tuple[int, int]:
@@ -71,19 +74,34 @@ user-style {n_user}개 (type: user_short):
 ]"""
 
 
-def _parse_json_response(text: str) -> list:
+def _parse_json_response(text: str):
     text = text.strip()
     if text.startswith("```"):
         parts = text.split("```")
         text = parts[1] if len(parts) > 1 else text
         if text.startswith("json"):
             text = text[4:]
-    return json.loads(text.strip())
+    text = text.strip()
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        # 잘린 JSON 복구: 마지막 완전한 구조까지만 파싱
+        last_bracket = text.rfind("]")
+        last_brace = text.rfind("}")
+        cutoff = max(last_bracket, last_brace)
+        if cutoff == -1:
+            raise
+        closer = "]" if last_bracket > last_brace else "}"
+        parsed = json.loads(text[: cutoff + 1] + (closer if not text[cutoff] == closer else ""))
+    # score 타입 보장 (문자열 "5" 등 방어)
+    if isinstance(parsed, dict) and "score" in parsed:
+        parsed["score"] = int(str(parsed["score"]).strip())
+    return parsed
 
 
 def generate_seed_qa(notice: str, n_well: int, n_user: int) -> list[dict]:
     """Teacher 모델로 고품질 seed QA 생성 (streaming)"""
-    with client.messages.stream(
+    with teacher_client.messages.stream(
         model=TEACHER_MODEL,
         max_tokens=2000,
         system=TEACHER_SYSTEM,
@@ -110,6 +128,7 @@ JUDGE_CLAIM_EXTRACT_PROMPT = """아래 답변에서 공지사항과 대조해야
 일반적 설명문("신청하실 수 있습니다" 등)은 제외합니다.
 
 A: {answer}
+근거 원문 구절(Teacher 제공, 참고용): {source_span}
 
 JSON 배열로만 출력 (주장이 없으면 빈 배열):
 ["주장1", "주장2", ...]"""
@@ -163,29 +182,48 @@ JSON으로만 출력:
 
 
 def _call_judge(prompt: str, max_tokens: int) -> dict:
-    with client.messages.stream(
-        model=JUDGE_MODEL,
-        max_tokens=max_tokens,
-        system=JUDGE_SYSTEM,
-        messages=[{"role": "user", "content": prompt}],
-    ) as stream:
-        final = stream.get_final_message()
-    text = next(b.text for b in final.content if b.type == "text")
-    return _parse_json_response(text)
+    import re
+    for attempt in range(5):
+        try:
+            response = judge_client.models.generate_content(
+                model=JUDGE_MODEL,
+                contents=f"{JUDGE_SYSTEM}\n\n{prompt}",
+                config=GenerateContentConfig(
+                    max_output_tokens=max_tokens,
+                    thinking_config=ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            return _parse_json_response(response.text)
+        except Exception as e:
+            msg = str(e)
+            if "429" in msg:
+                m = re.search(r"retryDelay.*?(\d+)s", msg)
+                wait = int(m.group(1)) + 2 if m else 60
+                print(f"     ⏳ Rate limit — {wait}초 대기 후 재시도 ({attempt+1}/5)", flush=True)
+                time.sleep(wait)
+            else:
+                raise
+    raise RuntimeError("Judge 호출 5회 재시도 실패")
 
+
+INFERRED_RATIO_WARN = 0.2  # inferred claim 비율 경고 임계값
 
 def judge_qa(notice: str, qa: dict) -> dict:
     """LLM-as-Judge 3단계: claim 추출 → 개별 검증 → 품질 점수"""
     question, answer = qa["question"], qa["answer"]
+    source_span = qa.get("source_span", "")
 
-    # 3-A: 답변에서 검증 대상 사실 추출
+    # 3-A: 답변에서 검증 대상 사실 추출 (source_span 참고 제공)
     claims: list = _call_judge(
-        JUDGE_CLAIM_EXTRACT_PROMPT.format(answer=answer),
+        JUDGE_CLAIM_EXTRACT_PROMPT.format(answer=answer, source_span=source_span),
         max_tokens=300,
     )
-    # claims가 리스트가 아닌 경우 방어
     if not isinstance(claims, list):
         claims = []
+
+    inferred_claims: list = []
+    needs_review: bool = False
+    unchecked: bool = False
 
     if claims:
         # 3-B: claim별 공지 대조
@@ -197,25 +235,42 @@ def judge_qa(notice: str, qa: dict) -> dict:
                 answer=answer,
                 claims_numbered=claims_numbered,
             ),
-            max_tokens=600,
+            max_tokens=1500,
         )
         is_hallucinated = verify_result.get("hallucination", False)
         hallucinated_claims = verify_result.get("hallucinated_claims", [])
         hall_reason = verify_result.get("reason", "")
+
+        # inferred 비율 추적 (#1: 전면 면제 방지)
+        results = verify_result.get("results", [])
+        inferred_claims = [r["claim"] for r in results if r.get("status") == "inferred"]
+        if results:
+            inferred_ratio = len(inferred_claims) / len(results)
+            if inferred_ratio > INFERRED_RATIO_WARN:
+                needs_review = True
+                print(
+                    f"     ⚠️ inferred 비율 {inferred_ratio:.0%} ({len(inferred_claims)}/{len(results)}) "
+                    f"— needs_review 플래그 설정",
+                    flush=True,
+                )
     else:
-        # 사실적 주장이 없는 답변(절차 안내 등)은 hallucination 불가
+        # claims=[] : 사실적 주장 없음 → hallucination 검증 불가, unchecked 기록 (#3)
         is_hallucinated = False
         hallucinated_claims = []
         hall_reason = "사실적 주장 없음 — 검증 대상 없음"
+        unchecked = True
 
     if is_hallucinated:
         return {
             **qa,
             "hallucination": True,
             "hallucinated_claims": hallucinated_claims,
+            "inferred_claims": inferred_claims,
             "hall_reason": hall_reason,
             "judge_score": 0,
             "judge_reason": f"[HALLUCINATION] {hall_reason}",
+            "unchecked": unchecked,
+            "needs_review": needs_review,
         }
 
     # 3-C: 품질 점수
@@ -228,9 +283,12 @@ def judge_qa(notice: str, qa: dict) -> dict:
         **qa,
         "hallucination": False,
         "hallucinated_claims": [],
+        "inferred_claims": inferred_claims,
         "hall_reason": None,
         "judge_score": qual_result["score"],
         "judge_reason": qual_result["reason"],
+        "unchecked": unchecked,
+        "needs_review": needs_review,
     }
 
 
