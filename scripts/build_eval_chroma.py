@@ -119,6 +119,7 @@ def main() -> None:
         shutil.copytree(PRODUCTION_CHROMA, output)
 
     os.environ["CHROMA_DB_PATH"] = str(output)
+    os.environ["VECTOR_DB"] = "chroma"
     os.environ["SIMCSE_POOLING"] = args.pooling
     os.environ["EMBEDDER_BACKEND"] = args.backend
     if args.model:

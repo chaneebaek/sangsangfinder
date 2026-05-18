@@ -15,6 +15,8 @@ from .config import (
     EMBED_MODEL_PATH, BASE_MODEL_EMBED, EMBEDDER_BACKEND, SIMCSE_POOLING,
     SUMMARY_MODEL_PATH, CLASSIFY_MODEL_PATH,
     CHROMA_DB_PATH, INDEX_MANIFEST_PATH, NOTICES_CACHE_PATH,
+    VECTOR_DB, PINECONE_API_KEY, PINECONE_INDEX_NAME, PINECONE_CLOUD,
+    PINECONE_REGION, PINECONE_NAMESPACE, PINECONE_CACHE_PATH, EMBEDDING_DIM,
     CHUNK_SIZE, CHUNK_OVERLAP,
 )
 from .utils import infer_category, chunk_text
@@ -201,15 +203,250 @@ def get_classifier():
     return _classifier, _label_map
 
 
+def _metadata_matches(meta: dict | None, where: dict | None) -> bool:
+    if not where:
+        return True
+    if not meta:
+        return False
+    return all(meta.get(key) == value for key, value in where.items())
+
+
+class PineconeCollectionAdapter:
+    """Small Chroma-like facade over Pinecone plus a local chunk cache for BM25."""
+
+    FETCH_BATCH_SIZE = 100
+    DELETE_BATCH_SIZE = 1000
+
+    def __init__(self, index, namespace: str, cache_path: str) -> None:
+        self.index = index
+        self.namespace = namespace
+        self.cache_path = cache_path
+        self._cache: dict[str, dict] | None = None
+
+    def _load_cache(self) -> dict[str, dict]:
+        if self._cache is not None:
+            return self._cache
+        try:
+            with open(self.cache_path, encoding="utf-8") as f:
+                raw = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError, OSError):
+            raw = {}
+        self._cache = raw if isinstance(raw, dict) else {}
+        return self._cache
+
+    def _save_cache(self) -> None:
+        if self._cache is None:
+            return
+        os.makedirs(os.path.dirname(self.cache_path), exist_ok=True)
+        tmp_path = f"{self.cache_path}.tmp"
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(self._cache, f, ensure_ascii=False, indent=2)
+        os.replace(tmp_path, self.cache_path)
+
+    @staticmethod
+    def _clean_metadata(meta: dict | None) -> dict:
+        return {k: v for k, v in (meta or {}).items() if v is not None}
+
+    def count(self) -> int:
+        try:
+            stats = self.index.describe_index_stats()
+            namespaces = getattr(stats, "namespaces", None)
+            if namespaces is None and isinstance(stats, dict):
+                namespaces = stats.get("namespaces", {})
+            ns_stats = namespaces.get(self.namespace) if namespaces else None
+            if ns_stats is None:
+                return 0
+            if isinstance(ns_stats, dict):
+                return int(ns_stats.get("vector_count", 0))
+            return int(getattr(ns_stats, "vector_count", 0))
+        except Exception:
+            return len(self._load_cache())
+
+    def add(self, ids: list[str], embeddings: list, documents: list[str], metadatas: list[dict]) -> None:
+        vectors = []
+        cache = self._load_cache()
+        for id_, embedding, document, metadata in zip(ids, embeddings, documents, metadatas):
+            meta = self._clean_metadata(metadata)
+            vectors.append({"id": id_, "values": embedding, "metadata": {**meta, "document": document}})
+            cache[id_] = {"document": document, "metadata": meta}
+        if vectors:
+            self.index.upsert(vectors=vectors, namespace=self.namespace)
+            self._save_cache()
+
+    def update(self, ids: list[str], embeddings: list, documents: list[str], metadatas: list[dict]) -> None:
+        self.add(ids=ids, embeddings=embeddings, documents=documents, metadatas=metadatas)
+
+    def delete(self, ids: list[str]) -> None:
+        if not ids:
+            return
+        for start in range(0, len(ids), self.DELETE_BATCH_SIZE):
+            self.index.delete(ids=ids[start : start + self.DELETE_BATCH_SIZE], namespace=self.namespace)
+        cache = self._load_cache()
+        changed = False
+        for id_ in ids:
+            changed = cache.pop(id_, None) is not None or changed
+        if changed:
+            self._save_cache()
+
+    def get(
+        self,
+        ids: list[str] | None = None,
+        include: list[str] | None = None,
+        where: dict | None = None,
+        limit: int | None = None,
+    ) -> dict:
+        include = include or []
+        cache = self._load_cache()
+        result_ids: list[str] = []
+        documents: list[str] = []
+        metadatas: list[dict] = []
+
+        if ids is not None:
+            vectors = {}
+            for start in range(0, len(ids), self.FETCH_BATCH_SIZE):
+                batch_ids = ids[start : start + self.FETCH_BATCH_SIZE]
+                fetch_response = self.index.fetch(ids=batch_ids, namespace=self.namespace) if batch_ids else None
+                batch_vectors = getattr(fetch_response, "vectors", None) if fetch_response is not None else {}
+                if batch_vectors is None and isinstance(fetch_response, dict):
+                    batch_vectors = fetch_response.get("vectors", {})
+                vectors.update(batch_vectors or {})
+            for id_ in ids:
+                vector = vectors.get(id_) if vectors else None
+                cached = cache.get(id_)
+                metadata = getattr(vector, "metadata", None) if vector is not None else None
+                if metadata is None and isinstance(vector, dict):
+                    metadata = vector.get("metadata")
+                if vector is None and cached is None:
+                    continue
+                document = (metadata or {}).get("document") if metadata else None
+                if document is None and cached:
+                    document = cached.get("document", "")
+                meta = self._clean_metadata(metadata or (cached or {}).get("metadata", {}))
+                meta.pop("document", None)
+                if not _metadata_matches(meta, where):
+                    continue
+                result_ids.append(id_)
+                if "documents" in include:
+                    documents.append(document or "")
+                if "metadatas" in include:
+                    metadatas.append(meta)
+                if limit and len(result_ids) >= limit:
+                    break
+        else:
+            for id_, row in cache.items():
+                meta = self._clean_metadata(row.get("metadata", {}))
+                if not _metadata_matches(meta, where):
+                    continue
+                result_ids.append(id_)
+                if "documents" in include:
+                    documents.append(row.get("document", ""))
+                if "metadatas" in include:
+                    metadatas.append(meta)
+                if limit and len(result_ids) >= limit:
+                    break
+
+        response = {"ids": result_ids}
+        if "documents" in include:
+            response["documents"] = documents
+        if "metadatas" in include:
+            response["metadatas"] = metadatas
+        return response
+
+    def query(
+        self,
+        query_embeddings: list,
+        n_results: int,
+        include: list[str] | None = None,
+        where: dict | None = None,
+    ) -> dict:
+        response = self.index.query(
+            vector=query_embeddings[0],
+            top_k=n_results,
+            namespace=self.namespace,
+            filter=where,
+            include_metadata=True,
+        )
+        matches = getattr(response, "matches", None)
+        if matches is None and isinstance(response, dict):
+            matches = response.get("matches", [])
+
+        ids: list[str] = []
+        metadatas: list[dict] = []
+        distances: list[float] = []
+        documents: list[str] = []
+        for match in matches or []:
+            match_id = getattr(match, "id", None) if not isinstance(match, dict) else match.get("id")
+            score = getattr(match, "score", None) if not isinstance(match, dict) else match.get("score")
+            metadata = getattr(match, "metadata", None) if not isinstance(match, dict) else match.get("metadata")
+            meta = self._clean_metadata(metadata)
+            document = meta.pop("document", "")
+            ids.append(match_id)
+            metadatas.append(meta)
+            distances.append(1 - float(score or 0))
+            documents.append(document)
+
+        result = {"ids": [ids]}
+        include = include or []
+        if "metadatas" in include:
+            result["metadatas"] = [metadatas]
+        if "distances" in include:
+            result["distances"] = [distances]
+        if "documents" in include:
+            result["documents"] = [documents]
+        return result
+
+
+def _get_pinecone_collection() -> PineconeCollectionAdapter:
+    if not PINECONE_API_KEY:
+        raise RuntimeError("PINECONE_API_KEY is required when VECTOR_DB=pinecone.")
+    from pinecone import Pinecone, ServerlessSpec
+
+    pc = Pinecone(api_key=PINECONE_API_KEY)
+    if not pc.has_index(PINECONE_INDEX_NAME):
+        pc.create_index(
+            name=PINECONE_INDEX_NAME,
+            dimension=EMBEDDING_DIM,
+            metric="cosine",
+            spec=ServerlessSpec(cloud=PINECONE_CLOUD, region=PINECONE_REGION),
+            deletion_protection="disabled",
+        )
+    for _ in range(60):
+        desc = pc.describe_index(PINECONE_INDEX_NAME)
+        status = getattr(desc, "status", None)
+        if status is None and isinstance(desc, dict):
+            status = desc.get("status", {})
+        ready = status.get("ready") if isinstance(status, dict) else getattr(status, "ready", False)
+        if ready:
+            dimension = desc.get("dimension") if isinstance(desc, dict) else getattr(desc, "dimension", None)
+            if dimension and int(dimension) != EMBEDDING_DIM:
+                raise RuntimeError(
+                    f"Pinecone index dimension mismatch: {dimension} != EMBEDDING_DIM={EMBEDDING_DIM}."
+                )
+            break
+        time.sleep(1)
+    else:
+        raise RuntimeError(f"Pinecone index is not ready: {PINECONE_INDEX_NAME}")
+    return PineconeCollectionAdapter(
+        index=pc.Index(PINECONE_INDEX_NAME),
+        namespace=PINECONE_NAMESPACE,
+        cache_path=PINECONE_CACHE_PATH,
+    )
+
+
 def get_chroma():
     global _chroma
     if _chroma is None:
-        import chromadb
-        client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-        _chroma = client.get_or_create_collection(
-            name="hansung_notices",
-            metadata={"hnsw:space": "cosine"},
-        )
+        if VECTOR_DB == "pinecone":
+            _chroma = _get_pinecone_collection()
+        elif VECTOR_DB == "chroma":
+            import chromadb
+            client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+            _chroma = client.get_or_create_collection(
+                name="hansung_notices",
+                metadata={"hnsw:space": "cosine"},
+            )
+        else:
+            raise ValueError("VECTOR_DB must be either 'chroma' or 'pinecone'.")
     return _chroma
 
 
@@ -290,7 +527,7 @@ def index_notices(
     notice_batch_size: int = 20,
     embed_batch_size: int = 16,
 ) -> int:
-    """Index notices into ChromaDB. Returns count of newly indexed documents."""
+    """Index notices into the configured vector DB. Returns count of newly indexed notices."""
     collection = get_chroma()
     manifest   = _load_index_manifest()
     manifest_notices = manifest["notices"]

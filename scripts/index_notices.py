@@ -1,5 +1,5 @@
 """
-Index notice embeddings into ChromaDB.
+Index notice embeddings into the configured vector DB.
 
 Run from the project root:
     python scripts/index_notices.py
@@ -19,7 +19,7 @@ from api.core.models import index_notices, load_notices_cache  # noqa: E402
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Index Sangsangfinder notices into ChromaDB.")
+    parser = argparse.ArgumentParser(description="Index Sangsangfinder notices into the configured vector DB.")
     parser.add_argument(
         "--force",
         action="store_true",

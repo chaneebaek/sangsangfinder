@@ -23,6 +23,7 @@ import argparse
 import json
 import logging
 import math
+import os
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -36,6 +37,8 @@ logging.getLogger("chromadb.telemetry.posthog").setLevel(logging.CRITICAL)
 ROOT = Path(__file__).parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
+
+os.environ["VECTOR_DB"] = "chroma"
 
 from api.core.models import get_chroma  # noqa: E402
 from api.services.search_service import hybrid_search  # noqa: E402

@@ -1,6 +1,10 @@
 requests==2.32.3
 beautifulsoup4==4.12.3
+streamlit==1.56.0
+supabase==2.30.0
 chromadb==0.6.3
+pinecone==9.0.0
+python-dotenv==1.2.2
 sentence-transformers==3.4.1
 transformers==4.46.3
 numpy<2

@@ -164,9 +164,8 @@ def get_classifier():
 
 @st.cache_resource
 def get_chroma():
-    import chromadb
-    client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-    return client.get_or_create_collection(name="hansung_notices", metadata={"hnsw:space": "cosine"})
+    from api.core.models import get_chroma as get_vector_store
+    return get_vector_store()
 
 def classify_notice(title, body):
     clf, label_map = get_classifier()

@@ -2,8 +2,15 @@ import os
 import re
 from datetime import datetime
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+VECTOR_DB           = os.getenv("VECTOR_DB", "pinecone" if os.getenv("PINECONE_API_KEY") else "chroma").lower()
 EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
 SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
 CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
@@ -12,8 +19,23 @@ EMBEDDER_BACKEND    = os.getenv("EMBEDDER_BACKEND", "sentence-transformers").low
 SIMCSE_POOLING      = os.getenv("SIMCSE_POOLING", "cls").lower()
 SEARCH_ALPHA        = float(os.getenv("SEARCH_ALPHA", "0.5"))
 CHROMA_DB_PATH      = os.getenv("CHROMA_DB_PATH", os.path.join(_BASE_DIR, "chroma_db"))
-INDEX_MANIFEST_PATH = os.path.join(CHROMA_DB_PATH, "index_manifest.json")
+VECTOR_STATE_PATH   = os.getenv(
+    "VECTOR_STATE_PATH",
+    CHROMA_DB_PATH if VECTOR_DB == "chroma" else os.path.join(_BASE_DIR, "pinecone_index"),
+)
+INDEX_MANIFEST_PATH = os.path.join(VECTOR_STATE_PATH, "index_manifest.json")
 NOTICES_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "data_2026.json")
+
+PINECONE_API_KEY    = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "hansung-notices")
+PINECONE_CLOUD      = os.getenv("PINECONE_CLOUD", "aws")
+PINECONE_REGION     = os.getenv("PINECONE_REGION", "us-east-1")
+PINECONE_NAMESPACE  = os.getenv("PINECONE_NAMESPACE", "prod")
+PINECONE_CACHE_PATH = os.getenv(
+    "PINECONE_CACHE_PATH",
+    os.path.join(VECTOR_STATE_PATH, "pinecone_chunks.json"),
+)
+EMBEDDING_DIM       = int(os.getenv("EMBEDDING_DIM", "768"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
