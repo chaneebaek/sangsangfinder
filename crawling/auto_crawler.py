@@ -312,6 +312,12 @@ def run_daemon(interval: int, no_index: bool, max_pages: int, storage: str, init
 
 # ── CLI ───────────────────────────────────────────────────────
 
+def _is_business_hours() -> bool:
+    """평일 09:00-18:00 KST 여부 확인."""
+    now = datetime.now()
+    return now.weekday() < 5 and 9 <= now.hour < 18
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(
         description="한성대 공지 증분 크롤러",
@@ -323,11 +329,15 @@ def main() -> None:
     ap.add_argument("--max-pages",  type=int, default=5,  dest="max_pages", help="탐색 최대 페이지 수")
     ap.add_argument("--storage", choices=["file", "supabase"], default="file", help="공지 저장소")
     ap.add_argument("--init-db", action="store_true", help="Supabase notices 테이블/인덱스 생성")
+    ap.add_argument("--force",      action="store_true",  help="업무시간 체크 무시하고 강제 실행")
     args = ap.parse_args()
 
     if args.daemon:
         run_daemon(args.interval, args.no_index, args.max_pages, args.storage, args.init_db)
     else:
+        if not args.force and not _is_business_hours():
+            logger.info("업무시간 외 (%s) — 크롤링 생략", datetime.now().strftime("%a %H:%M"))
+            return
         run_once(
             no_index=args.no_index,
             max_pages=args.max_pages,
