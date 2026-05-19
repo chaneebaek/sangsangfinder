@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 116,
+  "revision": 117,
   "index_config": {
     "signature": "52fe5784d820ee74f4bf9c5e8aea66410346dffc612aca5501e6c29e80868fca",
     "embedding_model": "jhgan/ko-sroberta-multitask",
@@ -18616,6 +18616,20 @@
         "49dd63476e23d273e7d5ba627c7fcc7f_1",
         "49dd63476e23d273e7d5ba627c7fcc7f_2",
         "49dd63476e23d273e7d5ba627c7fcc7f_3"
+      ]
+    },
+    "90e8668d3f8faf0cd7162938ea7b22ba": {
+      "content_hash": "435f7f246e1d908a093120be4fdfa73684df36a9f3f5f35eff08f236ddf3240f",
+      "index_config_signature": "52fe5784d820ee74f4bf9c5e8aea66410346dffc612aca5501e6c29e80868fca",
+      "chunk_ids": [
+        "90e8668d3f8faf0cd7162938ea7b22ba_0"
+      ]
+    },
+    "5de34051ae0583e77aca8bd2313935ff": {
+      "content_hash": "78ab59a2147f73c7b6dacab9cdf906c7dbf97abf8a572e9d7e75b18fc416a595",
+      "index_config_signature": "52fe5784d820ee74f4bf9c5e8aea66410346dffc612aca5501e6c29e80868fca",
+      "chunk_ids": [
+        "5de34051ae0583e77aca8bd2313935ff_0"
       ]
     }
   }

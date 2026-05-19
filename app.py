@@ -198,6 +198,32 @@ def _build_bm25_index(category_filter):
     if not documents: return None, [], [], []
     return BM25Okapi([tokenize_ko(doc) for doc in documents]), ids, documents, metadatas
 
+def _parse_year_month(date_value):
+    match = re.search(r"(\d{4})\D{0,3}(\d{1,2})", str(date_value or ""))
+    if not match: return None
+    year, month = int(match.group(1)), int(match.group(2))
+    if not 1 <= month <= 12: return None
+    return year, month
+
+def _build_recency_scores(metadatas, meta_map):
+    parsed_months = [_parse_year_month(meta.get("date")) for meta in metadatas if meta]
+    parsed_months = [ym for ym in parsed_months if ym]
+    if not parsed_months: return {}, {}
+    latest_year, latest_month = max(parsed_months, key=lambda ym: ym[0] * 12 + ym[1])
+    latest_index = latest_year * 12 + latest_month
+    recency_scores = {}
+    month_diffs = {}
+    for did, meta in meta_map.items():
+        ym = _parse_year_month(meta.get("date"))
+        if not ym:
+            month_diffs[did] = 999
+            recency_scores[did] = 0
+            continue
+        month_diff = max(0, latest_index - (ym[0] * 12 + ym[1]))
+        month_diffs[did] = month_diff
+        recency_scores[did] = 1 / (1 + month_diff / 3)
+    return recency_scores, month_diffs
+
 def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
     model = get_embed_model(); collection = get_chroma()
     cat_key = category_filter if category_filter and category_filter != "전체" else "전체"
@@ -217,10 +243,26 @@ def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
     bm25_max    = max(bm25_raw) if max(bm25_raw) > 0 else 1
     bm25_scores = {did: s/bm25_max for did, s in zip(ids, bm25_raw)}
     all_ids = set(vector_scores)|set(bm25_scores)
-    final   = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
-    top_ids = sorted(final, key=lambda x: final[x], reverse=True)[:top_k]
     meta_map = dict(zip(ids, metadatas))
     doc_map = dict(zip(ids, documents))
+    recency_scores, month_diffs = _build_recency_scores(metadatas, meta_map)
+    base = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
+    final = {did: base[did]*(1+0.15*recency_scores.get(did,0)) for did in all_ids}
+    top_ids = sorted(final, key=lambda x: final[x], reverse=True)[:top_k]
+    for rank, did in enumerate(top_ids[:5], start=1):
+        meta = meta_map.get(did, {})
+        print(
+            "[search-score] "
+            f'query="{query}" rank={rank} '
+            f'final={final.get(did, 0):.4f} '
+            f'base={base.get(did, 0):.4f} '
+            f'vector={vector_scores.get(did, 0):.4f} '
+            f'bm25={bm25_scores.get(did, 0):.4f} '
+            f'recency={recency_scores.get(did, 0):.4f} '
+            f'month_diff={month_diffs.get(did, 999)} '
+            f'title="{meta.get("title", "")}"',
+            flush=True,
+        )
     return [
         {**meta_map[did], "score": round(final[did],4), "content": doc_map.get(did, "")}
         for did in top_ids
@@ -401,8 +443,23 @@ def render_chatbot(profile: dict):
                 else:
                     st.markdown(f'<div class="chat-bubble-bot">{msg["content"]}</div>', unsafe_allow_html=True)
                     if msg.get("results"):
-                        r = msg["results"][0]
-                        st.markdown(f'<div class="notice-card"><span style="font-size:11px;color:#86868b;font-weight:500;">📎 참고 공지</span>&nbsp;<span class="notice-tag">{r.get("category","기타")}</span><span class="notice-date">{r["date"]}</span><div class="notice-title">{r["title"]}</div><div style="margin-top:8px;"><a href="{r["url"]}" target="_blank" style="font-size:12px;color:#0a84ff;text-decoration:none;font-weight:600;">공지 바로가기 →</a></div></div>', unsafe_allow_html=True)
+                        for idx, r in enumerate(msg["results"][:3], start=1):
+                            title_safe = html.escape(str(r.get("title", "")))
+                            cat_safe   = html.escape(str(r.get("category", "기타")))
+                            date_safe  = html.escape(str(r.get("date", "")))
+                            url_safe   = html.escape(str(r.get("url", "#")), quote=True)
+                            st.markdown(
+                                '<div class="notice-card">'
+                                f'<span style="font-size:11px;color:#86868b;font-weight:500;">참고 공지 Top{idx}</span>&nbsp;'
+                                f'<span class="notice-tag">{cat_safe}</span>'
+                                f'<span class="notice-date">{date_safe}</span>'
+                                f'<div class="notice-title">{title_safe}</div>'
+                                '<div style="margin-top:8px;">'
+                                f'<a href="{url_safe}" target="_blank" style="font-size:12px;color:#0a84ff;text-decoration:none;font-weight:600;">공지 바로가기 →</a>'
+                                '</div>'
+                                '</div>',
+                                unsafe_allow_html=True,
+                            )
 
     with st.form("chat_form", clear_on_submit=True):
         c0, c1, c2 = st.columns([1.2, 4, 0.8])

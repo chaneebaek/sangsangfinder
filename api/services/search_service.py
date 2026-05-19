@@ -4,6 +4,8 @@ Extracted from app.py: hybrid_search, _build_bm25_index, generate_llm_reply.
 """
 from __future__ import annotations
 
+import re
+
 from ..core.config import GEMINI_API_KEY, SEARCH_ALPHA
 from ..core.models import get_embed_model, get_chroma, get_index_fingerprint, load_notices_cache
 from ..core.utils import tokenize_ko
@@ -40,6 +42,44 @@ def _build_bm25_index(category_filter: str | None):
 
 def invalidate_bm25_cache() -> None:
     _bm25_cache.clear()
+
+
+def _parse_year_month(date_value: object) -> tuple[int, int] | None:
+    match = re.search(r"(\d{4})\D{0,3}(\d{1,2})", str(date_value or ""))
+    if not match:
+        return None
+    year, month = int(match.group(1)), int(match.group(2))
+    if not 1 <= month <= 12:
+        return None
+    return year, month
+
+
+def _build_recency_scores(
+    metadatas: list[dict],
+    meta_map: dict[str, dict],
+) -> tuple[dict[str, float], dict[str, int]]:
+    parsed_months = [_parse_year_month(meta.get("date")) for meta in metadatas if meta]
+    parsed_months = [ym for ym in parsed_months if ym]
+    if not parsed_months:
+        return {}, {}
+
+    latest_year, latest_month = max(parsed_months, key=lambda ym: ym[0] * 12 + ym[1])
+    latest_index = latest_year * 12 + latest_month
+    recency_scores: dict[str, float] = {}
+    month_diffs: dict[str, int] = {}
+
+    for did, meta in meta_map.items():
+        ym = _parse_year_month(meta.get("date"))
+        if not ym:
+            month_diffs[did] = 999
+            recency_scores[did] = 0
+            continue
+
+        month_diff = max(0, latest_index - (ym[0] * 12 + ym[1]))
+        month_diffs[did] = month_diff
+        recency_scores[did] = 1 / (1 + month_diff / 3)
+
+    return recency_scores, month_diffs
 
 
 def hybrid_search(
@@ -81,20 +121,26 @@ def hybrid_search(
     bm25_scores = {did: s / bm25_max for did, s in zip(ids, bm25_raw)}
 
     all_ids = set(vector_scores) | set(bm25_scores)
-    final   = {
+    meta_map  = dict(zip(ids, metadatas))
+    doc_map   = dict(zip(ids, documents))
+    recency_scores, month_diffs = _build_recency_scores(metadatas, meta_map)
+    base = {
         did: alpha * vector_scores.get(did, 0) + (1 - alpha) * bm25_scores.get(did, 0)
         for did in all_ids
     }
-
-    meta_map  = dict(zip(ids, metadatas))
-    doc_map   = dict(zip(ids, documents))
+    final = {
+        did: base[did] * (1 + 0.15 * recency_scores.get(did, 0))
+        for did in all_ids
+    }
     seen_urls: dict[str, dict] = {}
+    seen_score_ids: list[str] = []
     for did in sorted(final, key=lambda x: final[x], reverse=True):
         meta = meta_map.get(did)
         if not meta:
             continue
         url = meta["url"]
         if url not in seen_urls:
+            seen_score_ids.append(did)
             seen_urls[url] = {
                 **meta,
                 "score": round(final[did], 4),
@@ -102,6 +148,21 @@ def hybrid_search(
             }
         if len(seen_urls) >= top_k:
             break
+
+    for rank, did in enumerate(seen_score_ids[:5], start=1):
+        meta = meta_map.get(did, {})
+        print(
+            "[search-score] "
+            f'query="{query}" rank={rank} '
+            f'final={final.get(did, 0):.4f} '
+            f'base={base.get(did, 0):.4f} '
+            f'vector={vector_scores.get(did, 0):.4f} '
+            f'bm25={bm25_scores.get(did, 0):.4f} '
+            f'recency={recency_scores.get(did, 0):.4f} '
+            f'month_diff={month_diffs.get(did, 999)} '
+            f'title="{meta.get("title", "")}"',
+            flush=True,
+        )
 
     return list(seen_urls.values())
 

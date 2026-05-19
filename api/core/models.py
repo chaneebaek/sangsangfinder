@@ -436,17 +436,11 @@ def _get_pinecone_collection() -> PineconeCollectionAdapter:
 def get_chroma():
     global _chroma
     if _chroma is None:
-        if VECTOR_DB == "pinecone":
-            _chroma = _get_pinecone_collection()
-        elif VECTOR_DB == "chroma":
-            import chromadb
-            client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-            _chroma = client.get_or_create_collection(
-                name="hansung_notices",
-                metadata={"hnsw:space": "cosine"},
+        if VECTOR_DB != "pinecone":
+            raise RuntimeError(
+                f"Pinecone is required for the production vector store; got VECTOR_DB={VECTOR_DB!r}."
             )
-        else:
-            raise ValueError("VECTOR_DB must be either 'chroma' or 'pinecone'.")
+        _chroma = _get_pinecone_collection()
     return _chroma
 
 
