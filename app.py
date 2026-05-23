@@ -7,13 +7,14 @@ import numpy as np
 from urllib.parse import urlparse, urlencode, parse_qs, urlunparse
 from datetime import datetime
 import html
-
+from datetime import datetime
 import streamlit as st
 from recommend import (
     load_notices_from_supabase,
     load_two_tower_model,
     two_tower_recommend,
     classify_job_type,
+    get_supabase
 )
 
 # try:
@@ -28,63 +29,99 @@ except ImportError:
     pass
 
 warnings.filterwarnings("ignore")
-
+os.environ["TRANSFORMERS_VERBOSITY"] = "error"
 # ── 경로 설정 ─────────────────────────────────────────────────
 _BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
 EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
 SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
 CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
 BASE_MODEL_EMBED    = "jhgan/ko-sroberta-multitask"
-CHROMA_DB_PATH      = os.getenv("CHROMA_DB_PATH", os.path.join(_BASE_DIR, "chroma_db"))
-SEARCH_ALPHA        = float(os.getenv("SEARCH_ALPHA", "0.5"))
+CHROMA_DB_PATH      = os.path.join(_BASE_DIR, "chroma_db")
 PROFILE_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "profile_cache.json")
 GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY")
 
 os.makedirs(os.path.join(_BASE_DIR, "data"), exist_ok=True)
 os.makedirs(CHROMA_DB_PATH, exist_ok=True)
 
-CATEGORIES = ["취업/채용", "인턴십", "장학금", "학자금/근로장학", "학사행정",
-              "창업", "국제교류", "교육/특강", "비교과", "공모전/경진대회",
-              "봉사/서포터즈", "기숙사/생활관", "ROTC", "기타"]
+CATEGORIES = [
+    "취업/채용", "학사행정", "학생활동/비교과",
+    "대외활동", "공모전/경진대회", "국제교류", "창업",
+    "장학금", "기숙사", "ROTC"
+]
 
 CATEGORY_PREFIX = {
-    "채용정보": "취업/채용", "강소기업채용": "취업/채용", "인턴쉽": "인턴십",
-    "교외장학금": "장학금", "국가장학금": "장학금", "학자금대출": "학자금/근로장학",
-    "국가근로": "학자금/근로장학", "면학근로": "학자금/근로장학",
-    "공모전": "공모전/경진대회", "정보": "공모전/경진대회",
+    "채용정보":   "취업/채용",
+    "강소기업채용": "취업/채용",
+    "인턴쉽":     "취업/채용",  # 인턴십 → 취업/채용으로 통합
+    "현장실습":   "취업/채용",
+    "교외장학금": "장학금",
+    "국가장학금": "장학금",
+    "공모전":     "공모전/경진대회",
+    "정보":       "공모전/경진대회",
+    "창업정보":   "창업",
+    "창업행사":   "창업",
 }
 
 CATEGORY_KEYWORDS = {
-    "ROTC": ["ROTC", "학군사관", "학군단", "현역병 모집", "예비군", "전문사관", "재병역판정검사"],
-    "기숙사/생활관": ["기숙사", "생활관", "상상빌리지", "우촌학사", "임대기숙사", "사감", "입사생 선발", "대학생주택", "학사관"],
-    "비교과": ["비교과", "동아리", "D-School", "포럼", "대동제", "영상제", "입학식", "HS CREW", "상상파크",
-              "라이프 디자인", "문화탐방", "만우절", "오찬 소통", "Lunch with", "천원의 아침밥", "ESG",
-              "진로집단상담", "리더십 탐험", "학생축제", "문화제", "페스티벌", "소모임",
-              "디즈니 프로그램", "새내기 새로배움터", "새로배움터", "총학생회", "사진전", "진로 설명회"],
-    "취업/채용": ["채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고", "직무", "채용연계", "추천채용"],
-    "인턴십": ["인턴", "인턴십", "일경험", "체험형", "현장실습", "IPP"],
-    "장학금": ["장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업", "스칼라십", "장학지원"],
-    "학자금/근로장학": ["학자금대출", "학자금", "이자지원", "국가근로", "면학근로", "근로장학", "대출이자", "등록금 납부"],
-    "학사행정": ["수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경", "성적", "폐강",
-                "복수전공", "부전공", "휴복학", "재입학", "연계전공", "Micro Degree", "MD과정",
-                "교양영어", "이수신청", "트랙선택", "계절학기", "수업평가", "학위취득유예",
-                "수강포기", "서면신청", "교차전부", "편입생", "전부(과)", "학위수여식",
-                "오리엔테이션", "반편성고사", "합격자 공고", "합격자 발표", "선발 결과",
-                "이수 면제", "수업운영 안내", "출결", "중간고사", "기말고사",
-                "전공과목 변경", "다전공 신청", "학석사연계", "학사경고", "자기설계전공", "교양필수"],
-    "창업": ["창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤", "입주기업", "예비창업", "학생 CEO", "CEO 발굴"],
-    "국제교류": ["교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학", "글로컬",
-                "글로벌 튜터링", "글로벌 Conversation", "단기연수", "K-Move", "WEST 연수", "글로벌 동행"],
-    "교육/특강": ["특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정", "역량강화",
-                "평생교육", "RISE", "마이크로디그리", "TOPCIT", "연구방법론", "초청강연", "특별강연",
-                "핵심역량진단", "폭력예방교육", "필수교육", "전문과정", "SW마에스트로", "코딩 캠프",
-                "직업흥미검사", "심리증진", "연구윤리", "워크숍", "진로지도시스템", "진로 캠프",
-                "심폐소생술", "저작권", "청년인생설계", "과학살롱", "기초학문"],
-    "공모전/경진대회": ["공모전", "경진대회", "챌린지", "해커톤", "대회", "공모", "문학상"],
-    "봉사/서포터즈": ["서포터즈", "서포터스", "봉사", "멘토", "봉사자", "기자단", "자원활동", "멘토단",
-                    "멘토링", "자원봉사", "홍보대사", "하랑", "소통-e", "앰버서더", "방송국 HBS", "홍보단",
-                    "수습기자", "모니터링단", "자문단", "바로알림단", "기획단", "체험단",
-                    "발굴단", "순찰대", "제작단", "자원지도자", "볼런톤", "청백리포터"],
+    "ROTC": [
+        "ROTC", "학군사관", "학군단", "현역병 모집", "예비군", "전문사관", "재병역판정검사"
+    ],
+    "기숙사": [
+        "기숙사", "생활관", "상상빌리지", "우촌학사", "임대기숙사", "사감",
+        "입사생 선발", "대학생주택", "학사관"
+    ],
+    "학생활동/비교과": [
+        "비교과", "동아리", "D-School", "포럼", "대동제", "영상제", "입학식",
+        "HS CREW", "상상파크", "라이프 디자인", "문화탐방", "만우절", "오찬 소통",
+        "Lunch with", "천원의 아침밥", "ESG", "진로집단상담", "리더십 탐험",
+        "학생축제", "문화제", "페스티벌", "소모임", "디즈니 프로그램",
+        "새내기 새로배움터", "새로배움터", "총학생회", "사진전", "진로 설명회",
+        "특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정",
+        "역량강화", "평생교육", "RISE", "마이크로디그리", "TOPCIT", "연구방법론",
+        "초청강연", "특별강연", "핵심역량진단", "폭력예방교육", "필수교육",
+        "전문과정", "SW마에스트로", "코딩 캠프", "직업흥미검사", "심리증진",
+        "연구윤리", "워크숍", "진로지도시스템", "진로 캠프", "심폐소생술",
+        "저작권", "청년인생설계", "과학살롱", "기초학문"
+    ],
+    "대외활동": [
+        "서포터즈", "서포터스", "봉사", "멘토", "봉사자", "기자단", "자원활동",
+        "멘토단", "멘토링", "자원봉사", "홍보대사", "하랑", "소통-e", "앰버서더",
+        "방송국 HBS", "홍보단", "수습기자", "모니터링단", "자문단", "바로알림단",
+        "기획단", "체험단", "발굴단", "순찰대", "제작단", "자원지도자",
+        "볼런톤", "청백리포터"
+    ],
+    "취업/채용": [
+        "채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고",
+        "직무", "채용연계", "추천채용", "인턴", "인턴십", "일경험", "체험형",
+        "현장실습", "IPP"
+    ],
+    "장학금": [
+        "장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업",
+        "스칼라십", "장학지원", "학자금대출", "학자금", "이자지원", "국가근로",
+        "면학근로", "근로장학", "대출이자", "등록금 납부"
+    ],
+    "학사행정": [
+        "수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경",
+        "성적", "폐강", "복수전공", "부전공", "휴복학", "재입학", "연계전공",
+        "Micro Degree", "MD과정", "교양영어", "이수신청", "트랙선택", "계절학기",
+        "수업평가", "학위취득유예", "수강포기", "서면신청", "교차전부", "편입생",
+        "전부(과)", "학위수여식", "오리엔테이션", "반편성고사", "합격자 공고",
+        "합격자 발표", "선발 결과", "이수 면제", "수업운영 안내", "출결",
+        "중간고사", "기말고사", "전공과목 변경", "다전공 신청", "학석사연계",
+        "학사경고", "자기설계전공", "교양필수"
+    ],
+    "창업": [
+        "창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤",
+        "입주기업", "예비창업", "학생 CEO", "CEO 발굴"
+    ],
+    "국제교류": [
+        "교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학",
+        "글로컬", "글로벌 튜터링", "글로벌 Conversation", "단기연수", "K-Move",
+        "WEST 연수", "글로벌 동행"
+    ],
+    "공모전/경진대회": [
+        "공모전", "경진대회", "챌린지", "해커톤", "대회", "공모", "문학상"
+    ],
 }
 
 _CATEGORY_PATTERN = re.compile(r"^(한성공지|국제|학사|비교과|장학|취업|진로|창업|기타|현장실습|교육프로그램|행사|일반공지)\s*")
@@ -164,8 +201,9 @@ def get_classifier():
 
 @st.cache_resource
 def get_chroma():
-    from api.core.models import get_chroma as get_vector_store
-    return get_vector_store()
+    import chromadb
+    client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
+    return client.get_or_create_collection(name="hansung_notices", metadata={"hnsw:space": "cosine"})
 
 def classify_notice(title, body):
     clf, label_map = get_classifier()
@@ -198,40 +236,14 @@ def _build_bm25_index(category_filter):
     if not documents: return None, [], [], []
     return BM25Okapi([tokenize_ko(doc) for doc in documents]), ids, documents, metadatas
 
-def _parse_year_month(date_value):
-    match = re.search(r"(\d{4})\D{0,3}(\d{1,2})", str(date_value or ""))
-    if not match: return None
-    year, month = int(match.group(1)), int(match.group(2))
-    if not 1 <= month <= 12: return None
-    return year, month
-
-def _build_recency_scores(metadatas, meta_map):
-    parsed_months = [_parse_year_month(meta.get("date")) for meta in metadatas if meta]
-    parsed_months = [ym for ym in parsed_months if ym]
-    if not parsed_months: return {}, {}
-    latest_year, latest_month = max(parsed_months, key=lambda ym: ym[0] * 12 + ym[1])
-    latest_index = latest_year * 12 + latest_month
-    recency_scores = {}
-    month_diffs = {}
-    for did, meta in meta_map.items():
-        ym = _parse_year_month(meta.get("date"))
-        if not ym:
-            month_diffs[did] = 999
-            recency_scores[did] = 0
-            continue
-        month_diff = max(0, latest_index - (ym[0] * 12 + ym[1]))
-        month_diffs[did] = month_diff
-        recency_scores[did] = 1 / (1 + month_diff / 3)
-    return recency_scores, month_diffs
-
-def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
+def hybrid_search(query, top_k=5, alpha=0.7, category_filter=None):
     model = get_embed_model(); collection = get_chroma()
     cat_key = category_filter if category_filter and category_filter != "전체" else "전체"
     where   = {"category": category_filter} if category_filter and category_filter != "전체" else None
     bm25, ids, documents, metadatas = _build_bm25_index(cat_key)
     if bm25 is None: return []
     q_emb     = model.encode(query).tolist()
-    n_results = min(top_k*5, len(documents))
+    n_results = min(top_k*2, len(documents))
     vr        = collection.query(query_embeddings=[q_emb], n_results=n_results, include=["metadatas","distances"], where=where)
     vector_scores = {}
     raw_dist = vr["distances"][0]
@@ -243,31 +255,10 @@ def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
     bm25_max    = max(bm25_raw) if max(bm25_raw) > 0 else 1
     bm25_scores = {did: s/bm25_max for did, s in zip(ids, bm25_raw)}
     all_ids = set(vector_scores)|set(bm25_scores)
-    meta_map = dict(zip(ids, metadatas))
-    doc_map = dict(zip(ids, documents))
-    recency_scores, month_diffs = _build_recency_scores(metadatas, meta_map)
-    base = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
-    final = {did: base[did]*(1+0.15*recency_scores.get(did,0)) for did in all_ids}
+    final   = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
     top_ids = sorted(final, key=lambda x: final[x], reverse=True)[:top_k]
-    for rank, did in enumerate(top_ids[:5], start=1):
-        meta = meta_map.get(did, {})
-        print(
-            "[search-score] "
-            f'query="{query}" rank={rank} '
-            f'final={final.get(did, 0):.4f} '
-            f'base={base.get(did, 0):.4f} '
-            f'vector={vector_scores.get(did, 0):.4f} '
-            f'bm25={bm25_scores.get(did, 0):.4f} '
-            f'recency={recency_scores.get(did, 0):.4f} '
-            f'month_diff={month_diffs.get(did, 999)} '
-            f'title="{meta.get("title", "")}"',
-            flush=True,
-        )
-    return [
-        {**meta_map[did], "score": round(final[did],4), "content": doc_map.get(did, "")}
-        for did in top_ids
-        if did in meta_map
-    ]
+    meta_map = dict(zip(ids, metadatas))
+    return [{**meta_map[did], "score": round(final[did],4)} for did in top_ids if did in meta_map]
 
 def summarize_notice(title, body):
     import html as _html
@@ -294,10 +285,7 @@ def generate_llm_reply(user_query, results, profile, is_first=False):
     if not results: return "관련 공지를 찾지 못했습니다. 다른 키워드로 검색해보세요."
     notices_data = load_notices_from_supabase()
     body_map     = {n["url"]: n.get("body","") for n in notices_data}
-    context = "\n\n".join([
-        f"[공지 {i+1}]\n제목: {r['title']}\n날짜: {r['date']}\n내용: {(r.get('content') or body_map.get(r['url'],''))[:800]}"
-        for i, r in enumerate(results[:3])
-    ])
+    context = "\n\n".join([f"[공지 {i+1}]\n제목: {r['title']}\n날짜: {r['date']}\n내용: {body_map.get(r['url'],'')[:800]}" for i, r in enumerate(results[:3])])
     greeting = f"{profile.get('name','')}님, 안녕하세요. " if is_first else ""
     prompt = f"""당신은 한성대학교 공지사항 안내 도우미입니다.
 아래 공지사항 본문을 바탕으로 사용자 질문에 직접적이고 구체적으로 답변하세요.
@@ -378,21 +366,106 @@ def render_onboarding():
     with col_form:
         with st.container(border=True):
             st.markdown('<div style="font-size:17px;font-weight:700;color:#1d1d1f;margin-bottom:3px;">반갑습니다 👋</div><div style="font-size:13px;color:#86868b;margin-bottom:14px;">기본 정보를 알려주세요.</div>', unsafe_allow_html=True)
+
+            # ── 기본 정보 ──────────────────────────────────────
             r1c1, r1c2 = st.columns(2)
             with r1c1: name    = st.text_input("이름", placeholder="홍길동", key="ob_name")
             with r1c2: college = st.selectbox("단과대", list(COLLEGE_MAP.keys()), key="ob_college")
             r2c1, r2c2 = st.columns(2)
             with r2c1: track = st.selectbox("트랙 / 학과", COLLEGE_MAP.get(college, ["기타"]), key="ob_track")
             with r2c2: grade = st.selectbox("학년", ["1학년","2학년","3학년","4학년"], key="ob_grade")
-            interests = st.multiselect("관심사", CATEGORIES+["교환학생"], placeholder="관심 카테고리를 선택하세요", key="ob_interests")
+            interests = st.multiselect(
+                "관심사",
+                ["취업/채용","학사행정","학생활동/비교과","대외활동","공모전/경진대회","국제교류","창업","장학금","기숙사","ROTC"],
+                placeholder="관심 카테고리를 선택하세요",
+                key="ob_interests"
+            )
+
+            # ── 장학금 관심 시 추가 항목 ───────────────────────
+            income_level = None
+            gpa          = None
+            region       = None
+            loan         = None
+            if "장학금" in interests:
+                st.markdown("<div style='font-size:13px;font-weight:600;color:#1d1d1f;margin-top:12px;margin-bottom:6px;'>📌 장학금 맞춤 필터</div>", unsafe_allow_html=True)
+                sc1, sc2 = st.columns(2)
+                with sc1:
+                    income_level = st.selectbox(
+                        "소득분위",
+                        ["모름/해당없음","1분위","2분위","3분위","4분위","5분위","6분위","7분위","8분위","9분위","10분위"],
+                        key="ob_income"
+                    )
+                with sc2:
+                    gpa = st.selectbox(
+                        "최근 학점",
+                        ["모름/해당없음","4.0 이상","3.5 이상","3.0 이상","2.5 이상","2.0 이상","2.0 미만"],
+                        key="ob_gpa"
+                    )
+                sc3, sc4 = st.columns(2)
+                with sc3:
+                    region = st.selectbox(
+                        "거주 지역",
+                        ["서울","경기/인천","지방","해외"],
+                        key="ob_region"
+                    )
+                with sc4:
+                    loan = st.selectbox(
+                        "학자금 대출 여부",
+                        ["해당없음","대출 있음"],
+                        key="ob_loan"
+                    )
+
+            # ── 기숙사 관심 시 추가 항목 ───────────────────────
+            gender       = None
+            dorm_interest = None
+            if "기숙사" in interests:
+                st.markdown("<div style='font-size:13px;font-weight:600;color:#1d1d1f;margin-top:12px;margin-bottom:6px;'>📌 기숙사 맞춤 필터</div>", unsafe_allow_html=True)
+                dc1, dc2 = st.columns(2)
+                with dc1:
+                    gender = st.selectbox(
+                        "성별",
+                        ["남성","여성"],
+                        key="ob_gender"
+                    )
+                with dc2:
+                    dorm_interest = st.multiselect(
+                        "관심 기숙사",
+                        ["상상빌리지", "우촌학사", "임대기숙사", "동소문행복기숙사", "에피소드"],
+                        key="ob_dorm"
+                    )
+
+            # ── ROTC 관심 시 추가 항목 ─────────────────────────
+            rotc_interest = False
+            if "ROTC" in interests:
+                st.markdown("<div style='font-size:13px;font-weight:600;color:#1d1d1f;margin-top:12px;margin-bottom:6px;'>📌 ROTC</div>", unsafe_allow_html=True)
+                rotc_interest = st.checkbox("ROTC 후보생 모집 공지 받기", value=True, key="ob_rotc")
+
             st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
             if st.button("시작하기 →", use_container_width=True):
                 if not name.strip():
                     st.markdown('<div style="background:#e8f1ff;color:#0a84ff;border-radius:10px;padding:10px 16px;font-size:14px;font-weight:500;border:1px solid #b3d1ff;">✏️ 이름을 입력해 주세요.</div>', unsafe_allow_html=True)
                 else:
-                    profile_data = {"name": name.strip(), "college": college, "track": track, "grade": grade, "interests": interests}
-                    st.session_state.profile = profile_data; st.session_state.onboarded = True
-                    with open(PROFILE_CACHE_PATH, "w", encoding="utf-8") as f: json.dump(profile_data, f, ensure_ascii=False, indent=2)
+                    profile_data = {
+                        "name":          name.strip(),
+                        "college":       college,
+                        "track":         track,
+                        "grade":         grade,
+                        "interests":     interests,
+                        # 장학금
+                        "income_level":  income_level,
+                        "gpa":           gpa,
+                        "region":        region,
+                        "loan":          loan,
+                        # 기숙사
+                        "gender":        gender,
+                        "dorm_interest": dorm_interest or [],
+                        # ROTC
+                        "rotc_interest": rotc_interest,
+                    }
+                    st.session_state.profile  = profile_data
+                    st.session_state.onboarded = True
+                    with open(PROFILE_CACHE_PATH, "w", encoding="utf-8") as f:
+                        json.dump(profile_data, f, ensure_ascii=False, indent=2)
                     st.rerun()
 
 # ============================================================
@@ -426,10 +499,7 @@ def render_sidebar(profile):
 # 챗봇
 # ============================================================
 
-def render_chatbot(profile: dict):
-    top_k = 5
-    alpha = SEARCH_ALPHA
-
+def render_chatbot(profile):
     with st.container(border=True):
         st.markdown('<div class="mac-bar"><div class="mac-dot mac-dot-red"></div><div class="mac-dot mac-dot-yellow"></div><div class="mac-dot mac-dot-green"></div></div><div style="margin-top:12px;"></div>', unsafe_allow_html=True)
         if not st.session_state.chat_history:
@@ -443,23 +513,8 @@ def render_chatbot(profile: dict):
                 else:
                     st.markdown(f'<div class="chat-bubble-bot">{msg["content"]}</div>', unsafe_allow_html=True)
                     if msg.get("results"):
-                        for idx, r in enumerate(msg["results"][:3], start=1):
-                            title_safe = html.escape(str(r.get("title", "")))
-                            cat_safe   = html.escape(str(r.get("category", "기타")))
-                            date_safe  = html.escape(str(r.get("date", "")))
-                            url_safe   = html.escape(str(r.get("url", "#")), quote=True)
-                            st.markdown(
-                                '<div class="notice-card">'
-                                f'<span style="font-size:11px;color:#86868b;font-weight:500;">참고 공지 Top{idx}</span>&nbsp;'
-                                f'<span class="notice-tag">{cat_safe}</span>'
-                                f'<span class="notice-date">{date_safe}</span>'
-                                f'<div class="notice-title">{title_safe}</div>'
-                                '<div style="margin-top:8px;">'
-                                f'<a href="{url_safe}" target="_blank" style="font-size:12px;color:#0a84ff;text-decoration:none;font-weight:600;">공지 바로가기 →</a>'
-                                '</div>'
-                                '</div>',
-                                unsafe_allow_html=True,
-                            )
+                        r = msg["results"][0]
+                        st.markdown(f'<div class="notice-card"><span style="font-size:11px;color:#86868b;font-weight:500;">📎 참고 공지</span>&nbsp;<span class="notice-tag">{r.get("category","기타")}</span><span class="notice-date">{r["date"]}</span><div class="notice-title">{r["title"]}</div><div style="margin-top:8px;"><a href="{r["url"]}" target="_blank" style="font-size:12px;color:#0a84ff;text-decoration:none;font-weight:600;">공지 바로가기 →</a></div></div>', unsafe_allow_html=True)
 
     with st.form("chat_form", clear_on_submit=True):
         c0, c1, c2 = st.columns([1.2, 4, 0.8])
@@ -470,7 +525,7 @@ def render_chatbot(profile: dict):
     if submitted and user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         cat_filter = st.session_state.get("chat_cat", "전체")
-        results = hybrid_search(user_input, top_k=top_k, alpha=alpha, category_filter=cat_filter if cat_filter != "전체" else None)
+        results = hybrid_search(user_input, top_k=5, alpha=0.7, category_filter=cat_filter if cat_filter != "전체" else None)
         with st.spinner("답변 생성 중..."):
             reply = generate_llm_reply(user_input, results, st.session_state.profile, is_first=len(st.session_state.chat_history)==1)
         st.session_state.chat_history.append({"role": "bot", "content": reply, "results": results})
@@ -483,38 +538,253 @@ def render_chatbot(profile: dict):
 # 추천 게시물
 # ============================================================
 
+
+# ============================================================
+# 필터링 함수
+# ============================================================
+
+from datetime import datetime
+import json
+
+def filter_scholarships(profile) -> tuple:
+    """(신청 공지 리스트, 관련 공지 리스트) 반환"""
+    try:
+        today = datetime.now().strftime('%Y-%m-%d')
+
+        # ── 신청 공지 필터링 ──────────────────────────────────
+        res = get_supabase().table("scholarships").select("*").eq("is_application", True).execute()
+
+        income_level = profile.get('income_level')
+        gpa          = profile.get('gpa')
+        region       = profile.get('region')
+        loan         = profile.get('loan')
+        grade        = profile.get('grade', '')
+
+        grade_num = None
+        try:
+            grade_num = int(grade.replace('학년', '').strip())
+        except:
+            pass
+
+        income_num = None
+        if income_level and income_level != "모름/해당없음":
+            try:
+                income_num = int(income_level.replace("분위", ""))
+            except:
+                pass
+
+        gpa_num = None
+        if gpa and gpa != "모름/해당없음":
+            try:
+                gpa_num = float(gpa.split(" ")[0])
+            except:
+                pass
+
+        filtered = []
+        for s in (res.data or []):
+            target_grade = s.get('target_grade')
+            if isinstance(target_grade, str):
+                try: target_grade = json.loads(target_grade)
+                except: target_grade = []
+
+            target_status = s.get('target_status')
+            if isinstance(target_status, str):
+                try: target_status = json.loads(target_status)
+                except: target_status = []
+
+            if s.get('end_date_type') == '명시' and s.get('end_date'):
+                if s['end_date'] < today:
+                    continue
+            if grade_num and target_grade:
+                if grade_num not in target_grade:
+                    continue
+            if target_status and '재학' not in target_status:
+                continue
+            if income_num is not None and s.get('income_max') is not None:
+                if income_num > s['income_max']:
+                    continue
+            if gpa_num is not None and s.get('min_gpa') is not None:
+                if gpa_num < s['min_gpa']:
+                    continue
+            if s.get('region') is not None and region not in [None, "모름/해당없음"]:
+                if s['region'] != region:
+                    continue
+            if s.get('income_required') and loan != "대출 있음":
+                continue
+
+            filtered.append(s)
+
+        # 신청 공지 notices 가져오기
+        application_notices = []
+        if filtered:
+            notice_ids  = [s['notice_id'] for s in filtered]
+            notices_res = get_supabase().table("notices").select(
+                "id,notice_id,title,url,posted_at,body,category"
+            ).in_("notice_id", notice_ids).execute()
+            notices_map = {n['notice_id']: n for n in (notices_res.data or [])}
+            for s in filtered:
+                notice = notices_map.get(s['notice_id'], {})
+                if notice:
+                    notice['scholarship_info'] = s
+                    application_notices.append(notice)
+
+        # ── 관련 공지 최신순 3개 ──────────────────────────────
+        rel_res = get_supabase().table("scholarships").select("notice_id").eq("is_application", False).execute()
+        related_notices = []
+        if rel_res.data:
+            rel_ids     = [r['notice_id'] for r in rel_res.data]
+            rel_notices = get_supabase().table("notices").select(
+                "id,notice_id,title,url,posted_at,body,category"
+            ).in_("notice_id", rel_ids).order("posted_at", desc=True).limit(3).execute()
+            related_notices = rel_notices.data or []
+
+        return application_notices, related_notices
+
+    except Exception as e:
+        print(f"장학금 필터링 오류: {e}")
+        import traceback; traceback.print_exc()
+        return [], []
+
+
+
+def filter_dormitory(profile) -> list:
+    try:
+        res = get_supabase().table("dormitories").select("*").execute()
+        if not res.data:
+            return []
+
+        gender        = profile.get('gender')
+        dorm_interest = profile.get('dorm_interest', [])
+        today         = datetime.now().strftime('%Y-%m-%d')
+
+        filtered = []
+        for d in res.data:
+            # 마감일 체크
+            if d.get('end_date_type') == '명시' and d.get('end_date'):
+                if d['end_date'] < today:
+                    continue
+
+            # 관심 기숙사 체크
+            if dorm_interest:
+                if not any(dorm in (d.get('name') or '') for dorm in dorm_interest):
+                    continue
+
+            # 성별 체크
+            if gender == '남성' and d.get('male_quota') == 0:
+                continue
+            if gender == '여성' and d.get('female_quota') == 0:
+                continue
+
+            filtered.append(d)
+
+        if not filtered:
+            return []
+
+        notice_ids  = [d['notice_id'] for d in filtered]
+        notices_res = get_supabase().table("notices").select(
+            "id,notice_id,title,url,posted_at,body,category"
+        ).in_("notice_id", notice_ids).execute()
+        notices_map = {n['notice_id']: n for n in (notices_res.data or [])}
+
+        results = []
+        for d in filtered:
+            notice = notices_map.get(d['notice_id'], {})
+            if notice:
+                notice['dormitory_info'] = d
+                results.append(notice)
+
+        return results
+
+    except Exception as e:
+        print(f"기숙사 필터링 오류: {e}")
+        import traceback; traceback.print_exc()
+        return []
+
+
+def filter_rotc() -> list:
+    try:
+        res = get_supabase().table("notices").select(
+            "id,notice_id,title,url,posted_at,body,category"
+        ).eq("category", "ROTC").order("posted_at", desc=True).limit(5).execute()
+        return res.data or []
+    except Exception as e:
+        print(f"ROTC 필터링 오류: {e}")
+        return []
+    
+
 def render_recommend(profile):
-    st.markdown(f'<div style="background:white;border-radius:14px;padding:16px 20px;margin-bottom:20px;box-shadow:0 1px 5px rgba(0,0,0,0.06);display:flex;align-items:center;gap:16px;"><div style="font-size:30px;">🎓</div><div><div style="font-size:15px;font-weight:700;color:#1d1d1f;">{profile.get("college","")} &nbsp;·&nbsp; {profile.get("track","")} &nbsp;·&nbsp; {profile.get("grade","")}</div><div style="font-size:13px;color:#86868b;margin-top:3px;">관심사: {", ".join(profile.get("interests",[])) or "없음"}</div></div></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="background:white;border-radius:14px;padding:16px 20px;margin-bottom:20px;'
+        f'box-shadow:0 1px 5px rgba(0,0,0,0.06);display:flex;align-items:center;gap:16px;">'
+        f'<div style="font-size:30px;">🎓</div>'
+        f'<div><div style="font-size:15px;font-weight:700;color:#1d1d1f;">'
+        f'{profile.get("college","")} &nbsp;·&nbsp; {profile.get("track","")} &nbsp;·&nbsp; {profile.get("grade","")}'
+        f'</div><div style="font-size:13px;color:#86868b;margin-top:3px;">'
+        f'관심사: {", ".join(profile.get("interests",[])) or "없음"}'
+        f'</div></div></div>',
+        unsafe_allow_html=True
+    )
 
     col_l, col_c, col_r = st.columns([2, 1.5, 2])
     with col_c:
         btn_rec = st.button("맞춤 공지 추천받기", type="primary", use_container_width=True)
 
     if btn_rec:
+        scholarship_results  = []
+        scholarship_related  = []
+        dorm_results         = []
+        rotc_results         = []
+        interests = profile.get('interests', [])
+
+        # ── 추천 카테고리 공지 (Two-Tower) ────────────────────
+        FILTER_CATS = ["장학금", "기숙사", "ROTC"]
+        rec_interests = [i for i in interests if i not in FILTER_CATS]
+
         with st.spinner("추천 중..."):
             recs = two_tower_recommend(
                 college   = profile.get('college', ''),
                 track     = profile.get('track', ''),
                 year      = profile.get('grade', ''),
-                interests = profile.get('interests', []),
+                interests = rec_interests,
                 top_k     = 10,
-            )
+            ) if rec_interests else []
 
-        if not recs:
-            st.info("추천 결과가 없습니다."); return
+        # ── 장학금 필터링 ──────────────────────────────────────
+        scholarship_results = []
+        if "장학금" in interests:
+            with st.spinner("장학금 필터링 중..."):
+                scholarship_results, scholarship_related = filter_scholarships(profile)
+                
+        # ── 기숙사 필터링 ──────────────────────────────────────
+        dorm_results = []
+        if "기숙사" in interests:
+            with st.spinner("기숙사 필터링 중..."):
+                dorm_results = filter_dormitory(profile)
 
-        st.markdown(f"<div style='font-size:13px;color:#86868b;margin-bottom:12px;'>총 {len(recs)}개 공지를 추천했습니다.</div>", unsafe_allow_html=True)
+        # ── ROTC 필터링 ────────────────────────────────────────
+        rotc_results = []
+        if "ROTC" in interests and profile.get('rotc_interest', False):
+            with st.spinner("ROTC 공지 로딩 중..."):
+                rotc_results = filter_rotc()
 
-        for i, rec in enumerate(recs):
-            notice     = rec['notice']
+        # ── 결과 없으면 안내 ───────────────────────────────────
+        total = len(recs) + len(scholarship_results) + len(dorm_results) + len(rotc_results)
+        if total == 0:
+            st.info("추천 결과가 없습니다.")
+            return
+
+        # ── 추천 공지 출력 함수 ────────────────────────────────
+        def render_notice_card(notice, score_info=""):
             jts        = classify_job_type(notice)
             job_str    = " · ".join([t['job_type'] for t in jts]) if jts else ""
-            summary    = summarize_notice(notice.get('title',''), notice.get('body',''))
+            body = notice.get('body', '') or ''
+            summary = body[:200] + '...' if len(body) > 200 else body
             title_safe = html.escape(notice.get('title', ''))
             cat_safe   = html.escape(notice.get('category', '기타'))
-            date_val   = re.sub(r'<[^>]+>', '', str(notice.get('date',''))).strip()[:10]
+            date_val   = re.sub(r'<[^>]+>', '', str(notice.get('date', notice.get('posted_at','')))).strip()[:10]
             job_html   = f'<span style="font-size:11px;color:#86868b;">{html.escape(job_str)}</span>' if job_str else ""
             sum_html   = f'<div class="notice-summary">{summary}</div>' if summary else ""
+            score_html = f'<span style="font-size:11px;color:#aeaeb2;">{score_info}</span>' if score_info else ""
 
             st.markdown(
                 '<div class="notice-card">'
@@ -526,9 +796,37 @@ def render_recommend(profile):
                 f'{sum_html}'
                 '<div style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">'
                 f'<a href="{notice.get("url","#")}" target="_blank" style="font-size:12px;color:#0a84ff;text-decoration:none;font-weight:600;">공지 바로가기 →</a>'
+                f'{score_html}'
                 '</div>'
                 '</div>',
-                unsafe_allow_html=True)
+                unsafe_allow_html=True
+            )
+
+        # ── 추천 결과 출력 ─────────────────────────────────────
+        if recs:
+            st.markdown(f"<div style='font-size:14px;font-weight:600;color:#1d1d1f;margin:16px 0 8px;'>🎯 맞춤 추천 공지 ({len(recs)}개)</div>", unsafe_allow_html=True)
+            for rec in recs:
+                render_notice_card(rec['notice'])
+
+        if scholarship_results:
+            st.markdown(f"<div style='font-size:14px;font-weight:600;color:#1d1d1f;margin:16px 0 8px;'>💰 장학금 ({len(scholarship_results)}개)</div>", unsafe_allow_html=True)
+            for notice in scholarship_results:
+                render_notice_card(notice)
+
+        if scholarship_related:
+            st.markdown(f"<div style='font-size:14px;font-weight:600;color:#1d1d1f;margin:16px 0 8px;'>📢 장학금 관련 공지 ({len(scholarship_related)}개)</div>", unsafe_allow_html=True)
+            for notice in scholarship_related:
+                render_notice_card(notice)
+
+        if dorm_results:
+            st.markdown(f"<div style='font-size:14px;font-weight:600;color:#1d1d1f;margin:16px 0 8px;'>🏠 기숙사 ({len(dorm_results)}개)</div>", unsafe_allow_html=True)
+            for notice in dorm_results:
+                render_notice_card(notice)
+
+        if rotc_results:
+            st.markdown(f"<div style='font-size:14px;font-weight:600;color:#1d1d1f;margin:16px 0 8px;'>🎖️ ROTC ({len(rotc_results)}개)</div>", unsafe_allow_html=True)
+            for notice in rotc_results:
+                render_notice_card(notice)
 
 # ============================================================
 # 엔트리포인트
