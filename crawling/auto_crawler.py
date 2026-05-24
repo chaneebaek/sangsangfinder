@@ -248,16 +248,13 @@ def run_once(
 
     if new_items:
         if storage == "supabase":
-            saved = upsert_notices(new_items)
-            logger.info("=== 완료: 신규 %d건 Supabase 저장 ===", saved)
-            index_items = new_items
+            from crawling.notice_processor import process_notices
+            saved = process_notices(new_items)
+            logger.info("=== 완료: 신규 %d건 처리 완료 ===", saved)
         else:
-            # 최신순 유지: 새 항목을 기존 목록 앞에 prepend
             final = new_items + results
             _save(final, path)
-            logger.info("=== 완료: 신규 %d건 추가 / 총 %d건 → %s ===",
-                        len(new_items), len(final), path)
-            index_items = final
+            logger.info("=== 완료: 신규 %d건 추가 ===", len(new_items))
 
         if not no_index:
             _index(index_items)
