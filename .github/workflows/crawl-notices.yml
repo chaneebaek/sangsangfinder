@@ -52,3 +52,10 @@ jobs:
           PINECONE_API_KEY: ${{ secrets.PINECONE_API_KEY }}
           VECTOR_DB: pinecone
         run: python crawling/auto_crawler.py --storage supabase --init-db --max-pages 2
+        
+      - name: Process notices (category, embedding, score)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python crawling/notice_processor.py
