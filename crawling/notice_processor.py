@@ -242,13 +242,13 @@ def process_notices(notices: list[dict], batch_size: int = 10) -> int:
 
 # ── 단독 실행 (테스트용) ──────────────────────────────────────
 if __name__ == "__main__":
-    # 테스트: 최근 Supabase 공지 중 category_type 없는 것 처리
+    # category_type이 없는 신규 공지만 처리
     res = supabase.table("notices").select(
         "id,notice_id,title,url,posted_at,body,views,category"
-    ).is_("category_type", "null").limit(5).execute()
+    ).is_("category_type", "null").order("posted_at", desc=True).limit(20).execute()
 
     if res.data:
         print(f"미처리 공지 {len(res.data)}건 발견")
         process_notices(res.data)
     else:
-        print("미처리 공지 없음")
+        print("미처리 공지 없음 — 모든 공지가 처리됨")
