@@ -10,6 +10,7 @@ import argparse
 import logging
 import os
 import sys
+from datetime import datetime
 from typing import Any
 
 try:
@@ -29,7 +30,12 @@ from crawling.supabase_store import SOURCE, _connect  # noqa: E402
 from api.core.models import _notice_doc_id, get_chroma, index_notices  # noqa: E402
 
 
-def _load_supabase_notices(year: str | None = None, limit: int | None = None) -> list[dict[str, Any]]:
+def _load_supabase_notices(
+    year: str | None = None,
+    limit: int | None = None,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict[str, Any]]:
     params: list[Any] = [SOURCE]
     filters = ["source = %s"]
 
@@ -43,6 +49,13 @@ def _load_supabase_notices(year: str | None = None, limit: int | None = None) ->
             """
         )
         params.extend([year, f"{year}%"])
+
+    if start_date:
+        filters.append("posted_at >= %s")
+        params.append(datetime.strptime(start_date, "%Y-%m-%d").date())
+    if end_date:
+        filters.append("posted_at <= %s")
+        params.append(datetime.strptime(end_date, "%Y-%m-%d").date())
 
     sql = f"""
         select title, url, posted_at, posted_date_text, category, body, views
@@ -92,11 +105,18 @@ def main() -> None:
         description="Index Supabase notices that are missing from Pinecone."
     )
     parser.add_argument("--year", help="Only index notices from this year, e.g. 2026.")
+    parser.add_argument("--start-date", help="Only index notices on or after this date (YYYY-MM-DD).")
+    parser.add_argument("--end-date", help="Only index notices on or before this date (YYYY-MM-DD).")
     parser.add_argument("--limit", type=int, help="Limit the number of Supabase rows to scan.")
     parser.add_argument(
         "--all",
         action="store_true",
         help="Index all loaded notices through the normal manifest/content-hash path.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Delete and re-index all loaded notices even when the manifest hash is unchanged.",
     )
     parser.add_argument("--notice-batch-size", type=int, default=20)
     parser.add_argument("--embed-batch-size", type=int, default=16)
@@ -104,7 +124,12 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 
-    notices = _load_supabase_notices(year=args.year, limit=args.limit)
+    notices = _load_supabase_notices(
+        year=args.year,
+        limit=args.limit,
+        start_date=args.start_date,
+        end_date=args.end_date,
+    )
     if not notices:
         raise SystemExit("No Supabase notices found.")
 
@@ -121,6 +146,7 @@ def main() -> None:
 
     indexed = index_notices(
         target_notices,
+        force=args.force,
         notice_batch_size=args.notice_batch_size,
         embed_batch_size=args.embed_batch_size,
     )
