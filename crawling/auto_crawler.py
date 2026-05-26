@@ -236,10 +236,12 @@ def run_once(
             from crawling.notice_processor import process_notices
             saved = process_notices(new_items)
             logger.info("=== 완료: 신규 %d건 처리 완료 ===", saved)
+            index_items = new_items
         else:
             final = new_items + results
             _save(final, path)
             logger.info("=== 완료: 신규 %d건 추가 ===", len(new_items))
+            index_items = final
 
         if not no_index:
             _index(index_items)
