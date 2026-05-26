@@ -437,6 +437,62 @@ hr { border: none; border-top: 1px solid rgba(0,0,0,0.08) !important; margin: 14
 """
 
 # ============================================================
+# 알림 대상자 반환
+# ============================================================
+
+def get_notification_targets(notices: list[dict]) -> list[dict]:
+    """
+    신규 공지 리스트를 받아 알림 대상자 정보 반환.
+    알림 담당자에게 전달할 데이터 구조:
+    [
+        {
+            "notice_id":     "222025",
+            "title":         "공지 제목",
+            "category":      "장학금",
+            "category_type": ["장학금"],
+            "url":           "https://...",
+            "user_name":     "홍길동",
+            "phone":         "010-1234-5678",
+            "track":         "영미문화콘텐츠트랙",
+            "interests":     ["장학금", "취업/채용"],
+        },
+        ...
+    ]
+    """
+    if not os.path.exists(PROFILE_CACHE_PATH):
+        return []
+    try:
+        with open(PROFILE_CACHE_PATH, encoding="utf-8") as f:
+            profile = json.load(f)
+    except:
+        return []
+
+    phone = profile.get('phone')
+    if not phone:
+        return []
+
+    interests = profile.get('interests', [])
+    targets   = []
+
+    for notice in notices:
+        category = notice.get('category', '')
+        if category not in interests:
+            continue
+        targets.append({
+            "notice_id":     notice.get('notice_id', ''),
+            "title":         notice.get('title', ''),
+            "category":      category,
+            "category_type": notice.get('category_type') or notice.get('job_types') or [],
+            "url":           notice.get('url', ''),
+            "user_name":     profile.get('name', ''),
+            "phone":         phone,
+            "track":         profile.get('track', ''),
+            "interests":     interests,
+        })
+
+    return targets
+
+# ============================================================
 # 필터링 함수
 # ============================================================
 
@@ -679,6 +735,17 @@ def render_onboarding():
                 st.markdown("<div style='font-size:13px;font-weight:600;color:#1d1d1f;margin-top:12px;margin-bottom:6px;'>📌 ROTC</div>", unsafe_allow_html=True)
                 rotc_interest = st.checkbox("ROTC 후보생 모집 공지 받기", value=True, key="ob_rotc")
 
+            # ── 전화번호 (알림용) ──────────────────────────────
+            st.markdown("<div style='font-size:13px;color:#86868b;margin-top:12px;margin-bottom:4px;'>📱 공지 알림 수신 전화번호 <span style='font-size:11px;'>(선택, 빈칸이면 알림 미사용)</span></div>", unsafe_allow_html=True)
+            pc1, pc2, pc3 = st.columns(3)
+            with pc1: phone1 = st.text_input("", placeholder="010",  key="ob_phone1", max_chars=3,  label_visibility="collapsed")
+            with pc2: phone2 = st.text_input("", placeholder="0000", key="ob_phone2", max_chars=4,  label_visibility="collapsed")
+            with pc3: phone3 = st.text_input("", placeholder="0000", key="ob_phone3", max_chars=4,  label_visibility="collapsed")
+            phone1 = re.sub(r'\D', '', phone1)
+            phone2 = re.sub(r'\D', '', phone2)
+            phone3 = re.sub(r'\D', '', phone3)
+            phone  = f"{phone1}-{phone2}-{phone3}" if phone1 and phone2 and phone3 else None
+
             st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
             if st.button("시작하기 →", use_container_width=True):
                 if not name.strip():
@@ -697,6 +764,7 @@ def render_onboarding():
                         "gender":        gender,
                         "dorm_interest": dorm_interest or [],
                         "rotc_interest": rotc_interest,
+                        "phone":         phone,
                     }
                     st.session_state.profile  = profile_data
                     st.session_state.onboarded = True

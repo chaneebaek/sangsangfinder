@@ -6,3 +6,5 @@ sentence-transformers==3.4.1
 transformers==4.46.3
 numpy<2
 torch==2.1.0
+google-generativeai
+supabase
