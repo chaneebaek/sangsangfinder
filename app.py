@@ -440,7 +440,70 @@ hr { border: none; border-top: 1px solid rgba(0,0,0,0.08) !important; margin: 14
 # 알림 대상자 반환
 # ============================================================
 
-def get_notification_targets(notices: list[dict]) -> list[dict]:
+def _notification_user_id(profile: dict) -> str:
+    phone = profile.get("phone") or ""
+    seed = phone or profile.get("name") or json.dumps(profile, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(seed.encode("utf-8")).hexdigest()[:24]
+
+def sync_profile_to_supabase_user(profile: dict) -> None:
+    """로컬 온보딩 프로필을 Supabase users 테이블에 업서트한다."""
+    if not profile.get("phone"):
+        return
+
+    user_row = {
+        "user_id":   _notification_user_id(profile),
+        "name":      profile.get("name", ""),
+        "phone":     profile.get("phone"),
+        "interests": profile.get("interests") or [],
+        "track":     profile.get("track", ""),
+    }
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+    try:
+        if supabase_url and supabase_key and not supabase_url.startswith("your_"):
+            try:
+                get_supabase().table("users").upsert(user_row, on_conflict="user_id").execute()
+            except Exception as rest_error:
+                if os.getenv("SUPABASE_DB_URL"):
+                    print(f"Supabase REST users 동기화 실패, DB 직접 연결로 재시도: {rest_error}")
+                    _sync_profile_to_supabase_user_via_db(user_row)
+                else:
+                    raise
+        else:
+            _sync_profile_to_supabase_user_via_db(user_row)
+    except Exception as e:
+        print(f"Supabase users 동기화 실패: {e}")
+
+def _sync_profile_to_supabase_user_via_db(user_row: dict) -> None:
+    """SUPABASE_DB_URL만 있는 로컬 환경에서 users 테이블 생성 후 업서트한다."""
+    from crawling.supabase_store import ensure_schema, _connect
+
+    ensure_schema()
+    with _connect() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                insert into users (user_id, name, phone, interests, track, updated_at)
+                values (%s, %s, %s, %s, %s, now())
+                on conflict (user_id) do update set
+                    name = excluded.name,
+                    phone = excluded.phone,
+                    interests = excluded.interests,
+                    track = excluded.track,
+                    updated_at = now()
+                """,
+                (
+                    user_row["user_id"],
+                    user_row["name"],
+                    user_row["phone"],
+                    user_row["interests"],
+                    user_row["track"],
+                ),
+            )
+        conn.commit()
+
+def get_notification_targets(notices: list[dict], users: list[dict] | None = None) -> list[dict]:
     """
     신규 공지 리스트를 받아 알림 대상자 정보 반환.
     알림 담당자에게 전달할 데이터 구조:
@@ -459,36 +522,56 @@ def get_notification_targets(notices: list[dict]) -> list[dict]:
         ...
     ]
     """
-    if not os.path.exists(PROFILE_CACHE_PATH):
-        return []
-    try:
-        with open(PROFILE_CACHE_PATH, encoding="utf-8") as f:
-            profile = json.load(f)
-    except:
-        return []
+    if users is None:
+        if not os.path.exists(PROFILE_CACHE_PATH):
+            return []
+        try:
+            with open(PROFILE_CACHE_PATH, encoding="utf-8") as f:
+                profile = json.load(f)
+        except:
+            return []
+        users = [profile]
 
-    phone = profile.get('phone')
-    if not phone:
-        return []
-
-    interests = profile.get('interests', [])
     targets   = []
 
     for notice in notices:
         category = notice.get('category', '')
-        if category not in interests:
-            continue
-        targets.append({
-            "notice_id":     notice.get('notice_id', ''),
-            "title":         notice.get('title', ''),
-            "category":      category,
-            "category_type": notice.get('category_type') or notice.get('job_types') or [],
-            "url":           notice.get('url', ''),
-            "user_name":     profile.get('name', ''),
-            "phone":         phone,
-            "track":         profile.get('track', ''),
-            "interests":     interests,
-        })
+        category_type = notice.get('category_type') or notice.get('job_types') or []
+        if isinstance(category_type, str):
+            try:
+                category_type = json.loads(category_type)
+            except:
+                category_type = []
+
+        for user in users:
+            if not user or not user.get('phone'):
+                continue
+
+            interests = user.get('interests', [])
+            if isinstance(interests, str):
+                try:
+                    interests = json.loads(interests)
+                except:
+                    interests = [interests]
+
+            interest_set = set(interests)
+            matched = category in interest_set or bool(interest_set.intersection(category_type))
+            if not matched:
+                continue
+
+            targets.append({
+                "notice_db_id":   notice.get('id'),
+                "notice_id":      notice.get('notice_id', ''),
+                "title":          notice.get('title', ''),
+                "category":       category,
+                "category_type":  category_type,
+                "url":            notice.get('url', ''),
+                "user_id":        user.get('user_id') or user.get('id') or user.get('phone'),
+                "user_name":      user.get('name', ''),
+                "phone":          user.get('phone'),
+                "track":          user.get('track', ''),
+                "interests":      interests,
+            })
 
     return targets
 
@@ -770,6 +853,7 @@ def render_onboarding():
                     st.session_state.onboarded = True
                     with open(PROFILE_CACHE_PATH, "w", encoding="utf-8") as f:
                         json.dump(profile_data, f, ensure_ascii=False, indent=2)
+                    sync_profile_to_supabase_user(profile_data)
                     st.rerun()
 
 # ============================================================
