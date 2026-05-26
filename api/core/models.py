@@ -32,6 +32,7 @@ EMBEDDING_PIPELINE_VERSION = (
     if EMBEDDER_BACKEND == "simcse"
     else "sentence-transformers-default-v1"
 )
+TEXT_PROCESSING_VERSION = "ko-compound-category-v2"
 
 
 class SimCSEEmbedder:
@@ -169,6 +170,7 @@ def _index_config_signature() -> str:
         "embedding_model": _embed_model_source(),
         "embedder_backend": EMBEDDER_BACKEND,
         "embedding_pipeline": EMBEDDING_PIPELINE_VERSION,
+        "text_processing": TEXT_PROCESSING_VERSION,
         "simcse_pooling": SIMCSE_POOLING,
         "chunk_size": CHUNK_SIZE,
         "chunk_overlap": CHUNK_OVERLAP,
@@ -532,6 +534,7 @@ def index_notices(
         "embedding_model": _embed_model_source(),
         "embedder_backend": EMBEDDER_BACKEND,
         "embedding_pipeline": EMBEDDING_PIPELINE_VERSION,
+        "text_processing": TEXT_PROCESSING_VERSION,
         "simcse_pooling": SIMCSE_POOLING,
         "chunk_size": CHUNK_SIZE,
         "chunk_overlap": CHUNK_OVERLAP,
@@ -641,7 +644,13 @@ def index_notices(
                 collection.delete(ids=ids_to_delete)
 
             body     = item.get("body", "")
-            category = item.get("category") or classify_notice(item["title"], body)
+            inferred_category = classify_notice(item["title"], body)
+            existing_category = item.get("category")
+            category = (
+                inferred_category
+                if inferred_category == "봉사/서포터즈" and existing_category in {None, "", "국제교류", "기타"}
+                else existing_category or inferred_category
+            )
             chunks   = chunk_text(f"제목: {item['title']}\n\n{body}")
             meta     = {"title": item["title"], "url": item["url"],
                         "date": item["date"], "category": category}

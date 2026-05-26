@@ -44,6 +44,10 @@ def invalidate_bm25_cache() -> None:
     _bm25_cache.clear()
 
 
+def _markdown_log_cell(value: object) -> str:
+    return str(value or "").replace("\r", " ").replace("\n", " ").replace("|", r"\|")
+
+
 def _parse_year_month(date_value: object) -> tuple[int, int] | None:
     match = re.search(r"(\d{4})\D{0,3}(\d{1,2})", str(date_value or ""))
     if not match:
@@ -149,18 +153,27 @@ def hybrid_search(
         if len(seen_urls) >= top_k:
             break
 
-    for rank, did in enumerate(seen_score_ids[:5], start=1):
+    score_log_rows = seen_score_ids[:5]
+    if score_log_rows:
+        print(
+            "| tag | query | rank | final | base | vector | bm25 | recency | month_diff | date | title |\n"
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+            flush=True,
+        )
+    for rank, did in enumerate(score_log_rows, start=1):
         meta = meta_map.get(did, {})
         print(
-            "[search-score] "
-            f'query="{query}" rank={rank} '
-            f'final={final.get(did, 0):.4f} '
-            f'base={base.get(did, 0):.4f} '
-            f'vector={vector_scores.get(did, 0):.4f} '
-            f'bm25={bm25_scores.get(did, 0):.4f} '
-            f'recency={recency_scores.get(did, 0):.4f} '
-            f'month_diff={month_diffs.get(did, 999)} '
-            f'title="{meta.get("title", "")}"',
+            "| search-score | "
+            f"{_markdown_log_cell(query)} | "
+            f"{rank} | "
+            f"{final.get(did, 0):.4f} | "
+            f"{base.get(did, 0):.4f} | "
+            f"{vector_scores.get(did, 0):.4f} | "
+            f"{bm25_scores.get(did, 0):.4f} | "
+            f"{recency_scores.get(did, 0):.4f} | "
+            f"{month_diffs.get(did, 999)} | "
+            f"{_markdown_log_cell(meta.get('date', ''))} | "
+            f"{_markdown_log_cell(meta.get('title', ''))} |",
             flush=True,
         )
 

@@ -52,7 +52,8 @@ DELAY      = 0.5   # 요청 간 딜레이(초) — 서버 부하 방지
 SAVE_EVERY = 20    # N건마다 중간 저장
 
 # ── 카테고리 분류 (api/core/config.py 와 동기화) ──────────────
-from api.core.config import CATEGORY_PREFIX, CATEGORY_KEYWORDS, NOTICES_CACHE_PATH  # noqa: E402
+from api.core.config import NOTICES_CACHE_PATH  # noqa: E402
+from api.core.utils import infer_category  # noqa: E402
 
 
 # ── 파일 I/O ─────────────────────────────────────────────────
@@ -72,22 +73,6 @@ def _load(path: Path) -> tuple[list[dict], set[str]]:
 def _save(data: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
-# ── 카테고리 추론 ─────────────────────────────────────────────
-
-def infer_category(title: str, body: str = "") -> str:
-    for prefix, cat in CATEGORY_PREFIX.items():
-        if title.startswith(prefix):
-            return cat
-    for cat, kws in CATEGORY_KEYWORDS.items():
-        if any(kw in title for kw in kws):
-            return cat
-    if body:
-        for cat, kws in CATEGORY_KEYWORDS.items():
-            if any(kw in body for kw in kws):
-                return cat
-    return "기타"
 
 
 # ── 크롤링 ────────────────────────────────────────────────────

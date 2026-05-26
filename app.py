@@ -123,6 +123,12 @@ CATEGORY_KEYWORDS = {
 
 _CATEGORY_PATTERN = re.compile(r"^(한성공지|국제|학사|비교과|장학|취업|진로|창업|기타|현장실습|교육프로그램|행사|일반공지)\s*")
 _SUFFIX_PATTERN   = re.compile(r"\s*(새글|hot|NEW)\s*$", re.IGNORECASE)
+_KOREAN_TOKEN_PATTERN = re.compile(r"[가-힣]+")
+_DOMAIN_SPLIT_HINTS = (
+    "해외", "봉사", "봉사활동", "봉사단", "국제", "교류", "파견", "교환학생",
+    "어학연수", "모집", "지원", "장학", "인턴", "현장실습", "채용", "서포터즈",
+    "멘토링", "교육", "특강", "공모전", "경진대회", "기숙사", "국가근로",
+)
 
 COLLEGE_MAP = {
     "크리에이티브인문예술대학": ["영미문화콘텐츠트랙", "영미언어정보트랙", "한국어교육트랙", "역사문화큐레이션트랙", "역사콘텐츠트랙", "지식정보문화트랙", "디지털인문정보학트랙", "동양화전공", "서양화전공", "한국무용전공", "현대무용전공", "발레전공"],
@@ -158,9 +164,29 @@ def get_logo_base64(): return _load_image_b64("logo.png")
 def get_hsu_base64():  return _load_image_b64("hsu.png")
 
 def tokenize_ko(text):
-    return re.findall(r"[\w가-힣]+", text.lower())
+    tokens = re.findall(r"[\w가-힣]+", text.lower())
+    expanded = list(tokens)
+    for token in tokens:
+        if not _KOREAN_TOKEN_PATTERN.fullmatch(token):
+            continue
+        expanded.extend(hint for hint in _DOMAIN_SPLIT_HINTS if hint in token)
+        if 4 <= len(token) <= 12:
+            max_n = min(6, len(token))
+            expanded.extend(
+                token[start:start + n]
+                for n in range(2, max_n + 1)
+                for start in range(0, len(token) - n + 1)
+            )
+    return expanded
 
 def infer_category(title, body):
+    text = f"{title} {body}"
+    if (
+        ("봉사" in text and any(term in text for term in ("해외", "WFK", "월드프렌즈", "KOICA")))
+        or any(term in title for term in ("해외봉사", "청년봉사단", "프로젝트 봉사단", "봉사단"))
+    ):
+        return "봉사/서포터즈"
+
     for prefix, cat in CATEGORY_PREFIX.items():
         if title.startswith(prefix): return cat
     for cat, kws in CATEGORY_KEYWORDS.items():
@@ -215,7 +241,13 @@ def index_notices(notices):
     for item in notices:
         doc_id    = hashlib.md5(item["url"].encode()).hexdigest()
         body      = item.get("body","")
-        category  = item.get("category") or classify_notice(item["title"], body)
+        inferred_category = classify_notice(item["title"], body)
+        existing_category = item.get("category")
+        category = (
+            inferred_category
+            if inferred_category == "봉사/서포터즈" and existing_category in {None, "", "국제교류", "기타"}
+            else existing_category or inferred_category
+        )
         text      = f"제목: {item['title']}\n\n{body}"
         embedding = model.encode(text).tolist()
         existing  = collection.get(ids=[doc_id])["ids"]
@@ -259,6 +291,9 @@ def _build_recency_scores(metadatas, meta_map):
         recency_scores[did] = 1 / (1 + month_diff / 3)
     return recency_scores, month_diffs
 
+def _markdown_log_cell(value):
+    return str(value or "").replace("\r", " ").replace("\n", " ").replace("|", r"\|")
+
 def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
     model = get_embed_model(); collection = get_chroma()
     cat_key = category_filter if category_filter and category_filter != "전체" else "전체"
@@ -284,18 +319,27 @@ def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
     base  = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
     final = {did: base[did]*(1+0.15*recency_scores.get(did,0)) for did in all_ids}
     top_ids = sorted(final, key=lambda x: final[x], reverse=True)[:top_k]
-    for rank, did in enumerate(top_ids[:5], start=1):
+    score_log_rows = top_ids[:5]
+    if score_log_rows:
+        print(
+            "| tag | query | rank | final | base | vector | bm25 | recency | month_diff | date | title |\n"
+            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
+            flush=True,
+        )
+    for rank, did in enumerate(score_log_rows, start=1):
         meta = meta_map.get(did, {})
         print(
-            "[search-score] "
-            f'query="{query}" rank={rank} '
-            f'final={final.get(did,0):.4f} '
-            f'base={base.get(did,0):.4f} '
-            f'vector={vector_scores.get(did,0):.4f} '
-            f'bm25={bm25_scores.get(did,0):.4f} '
-            f'recency={recency_scores.get(did,0):.4f} '
-            f'month_diff={month_diffs.get(did,999)} '
-            f'title="{meta.get("title","")}"',
+            "| search-score | "
+            f"{_markdown_log_cell(query)} | "
+            f"{rank} | "
+            f"{final.get(did, 0):.4f} | "
+            f"{base.get(did, 0):.4f} | "
+            f"{vector_scores.get(did, 0):.4f} | "
+            f"{bm25_scores.get(did, 0):.4f} | "
+            f"{recency_scores.get(did, 0):.4f} | "
+            f"{month_diffs.get(did, 999)} | "
+            f"{_markdown_log_cell(meta.get('date', ''))} | "
+            f"{_markdown_log_cell(meta.get('title', ''))} |",
             flush=True,
         )
     return [
