@@ -31,13 +31,10 @@ EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
 SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
 CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
 BASE_MODEL_EMBED    = "jhgan/ko-sroberta-multitask"
-CHROMA_DB_PATH      = os.getenv("CHROMA_DB_PATH", os.path.join(_BASE_DIR, "chroma_db"))
-SEARCH_ALPHA        = float(os.getenv("SEARCH_ALPHA", "0.5"))
 PROFILE_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "profile_cache.json")
 GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY")
 
 os.makedirs(os.path.join(_BASE_DIR, "data"), exist_ok=True)
-os.makedirs(CHROMA_DB_PATH, exist_ok=True)
 
 # ── 신버전 카테고리 ───────────────────────────────────────────
 CATEGORIES = [
@@ -200,152 +197,12 @@ def infer_category(title, body):
 # ============================================================
 
 @st.cache_resource
-def get_embed_model():
-    from sentence_transformers import SentenceTransformer
-    path = EMBED_MODEL_PATH if os.path.exists(EMBED_MODEL_PATH) else BASE_MODEL_EMBED
-    return SentenceTransformer(path, device="cpu")
-
 @st.cache_resource
-def get_summary_pipeline():
-    if not os.path.exists(SUMMARY_MODEL_PATH): return None
-    from transformers import pipeline
-    return pipeline("summarization", model=SUMMARY_MODEL_PATH, tokenizer=SUMMARY_MODEL_PATH, max_new_tokens=128, device=-1)
-
 @st.cache_resource
-def get_classifier():
-    if not os.path.exists(CLASSIFY_MODEL_PATH): return None, None
-    from transformers import pipeline
-    clf = pipeline("text-classification", model=CLASSIFY_MODEL_PATH, tokenizer=CLASSIFY_MODEL_PATH, device=-1)
-    label_map = {}
-    label_map_path = f"{CLASSIFY_MODEL_PATH}/label_map.json"
-    if os.path.exists(label_map_path):
-        with open(label_map_path) as f: label_map = json.load(f)
-    return clf, label_map
-
 @st.cache_resource
-def get_chroma():
-    import chromadb
-    client = chromadb.PersistentClient(path=CHROMA_DB_PATH)
-    return client.get_or_create_collection(name="hansung_notices", metadata={"hnsw:space": "cosine"})
-
-def classify_notice(title, body):
-    clf, label_map = get_classifier()
-    if clf is None: return infer_category(title, body)
-    try:
-        result = clf(f"{title} {body[:200]}", truncation=True)[0]
-        return label_map.get(result["label"].replace("LABEL_",""), "기타")
-    except: return infer_category(title, body)
-
-def index_notices(notices):
-    model = get_embed_model(); collection = get_chroma()
-    for item in notices:
-        doc_id    = hashlib.md5(item["url"].encode()).hexdigest()
-        body      = item.get("body","")
-        inferred_category = classify_notice(item["title"], body)
-        existing_category = item.get("category")
-        category = (
-            inferred_category
-            if inferred_category == "봉사/서포터즈" and existing_category in {None, "", "국제교류", "기타"}
-            else existing_category or inferred_category
-        )
-        text      = f"제목: {item['title']}\n\n{body}"
-        embedding = model.encode(text).tolist()
-        existing  = collection.get(ids=[doc_id])["ids"]
-        meta      = {"title": item["title"], "url": item["url"], "date": item.get("date",""), "category": category}
-        if existing: collection.update(ids=[doc_id], embeddings=[embedding], documents=[text], metadatas=[meta])
-        else:        collection.add(ids=[doc_id], embeddings=[embedding], documents=[text], metadatas=[meta])
-
 @st.cache_data(ttl=600, show_spinner=False)
-def _build_bm25_index(category_filter):
-    from rank_bm25 import BM25Okapi
-    collection = get_chroma()
-    where      = {"category": category_filter} if category_filter and category_filter != "전체" else None
-    all_data   = collection.get(include=["documents","metadatas"], where=where)
-    documents  = all_data["documents"]; metadatas = all_data["metadatas"]; ids = all_data["ids"]
-    if not documents: return None, [], [], []
-    return BM25Okapi([tokenize_ko(doc) for doc in documents]), ids, documents, metadatas
-
-def _parse_year_month(date_value):
-    match = re.search(r"(\d{4})\D{0,3}(\d{1,2})", str(date_value or ""))
-    if not match: return None
-    year, month = int(match.group(1)), int(match.group(2))
-    if not 1 <= month <= 12: return None
-    return year, month
-
-def _build_recency_scores(metadatas, meta_map):
-    parsed_months = [_parse_year_month(meta.get("date")) for meta in metadatas if meta]
-    parsed_months = [ym for ym in parsed_months if ym]
-    if not parsed_months: return {}, {}
-    latest_year, latest_month = max(parsed_months, key=lambda ym: ym[0] * 12 + ym[1])
-    latest_index = latest_year * 12 + latest_month
-    recency_scores = {}
-    month_diffs = {}
-    for did, meta in meta_map.items():
-        ym = _parse_year_month(meta.get("date"))
-        if not ym:
-            month_diffs[did] = 999
-            recency_scores[did] = 0
-            continue
-        month_diff = max(0, latest_index - (ym[0] * 12 + ym[1]))
-        month_diffs[did] = month_diff
-        recency_scores[did] = 1 / (1 + month_diff / 3)
-    return recency_scores, month_diffs
-
 def _markdown_log_cell(value):
     return str(value or "").replace("\r", " ").replace("\n", " ").replace("|", r"\|")
-
-def hybrid_search(query, top_k=5, alpha=SEARCH_ALPHA, category_filter=None):
-    model = get_embed_model(); collection = get_chroma()
-    cat_key = category_filter if category_filter and category_filter != "전체" else "전체"
-    where   = {"category": category_filter} if category_filter and category_filter != "전체" else None
-    bm25, ids, documents, metadatas = _build_bm25_index(cat_key)
-    if bm25 is None: return []
-    q_emb     = model.encode(query).tolist()
-    n_results = min(top_k*5, len(documents))
-    vr        = collection.query(query_embeddings=[q_emb], n_results=n_results, include=["metadatas","distances"], where=where)
-    vector_scores = {}
-    raw_dist = vr["distances"][0]
-    if raw_dist:
-        max_sim = 1-min(raw_dist); min_sim = 1-max(raw_dist)
-        for vid, dist in zip(vr["ids"][0], raw_dist):
-            sim = 1-dist; vector_scores[vid] = (sim-min_sim)/(max_sim-min_sim+1e-9)
-    bm25_raw    = bm25.get_scores(tokenize_ko(query))
-    bm25_max    = max(bm25_raw) if max(bm25_raw) > 0 else 1
-    bm25_scores = {did: s/bm25_max for did, s in zip(ids, bm25_raw)}
-    all_ids = set(vector_scores)|set(bm25_scores)
-    meta_map = dict(zip(ids, metadatas))
-    doc_map  = dict(zip(ids, documents))
-    recency_scores, month_diffs = _build_recency_scores(metadatas, meta_map)
-    base  = {did: alpha*vector_scores.get(did,0)+(1-alpha)*bm25_scores.get(did,0) for did in all_ids}
-    final = {did: base[did]*(1+0.15*recency_scores.get(did,0)) for did in all_ids}
-    top_ids = sorted(final, key=lambda x: final[x], reverse=True)[:top_k]
-    score_log_rows = top_ids[:5]
-    if score_log_rows:
-        print(
-            "| tag | query | rank | final | base | vector | bm25 | recency | month_diff | date | title |\n"
-            "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- |",
-            flush=True,
-        )
-    for rank, did in enumerate(score_log_rows, start=1):
-        meta = meta_map.get(did, {})
-        print(
-            "| search-score | "
-            f"{_markdown_log_cell(query)} | "
-            f"{rank} | "
-            f"{final.get(did, 0):.4f} | "
-            f"{base.get(did, 0):.4f} | "
-            f"{vector_scores.get(did, 0):.4f} | "
-            f"{bm25_scores.get(did, 0):.4f} | "
-            f"{recency_scores.get(did, 0):.4f} | "
-            f"{month_diffs.get(did, 999)} | "
-            f"{_markdown_log_cell(meta.get('date', ''))} | "
-            f"{_markdown_log_cell(meta.get('title', ''))} |",
-            flush=True,
-        )
-    return [
-        {**meta_map[did], "score": round(final[did],4), "content": doc_map.get(did,"")}
-        for did in top_ids if did in meta_map
-    ]
 
 def summarize_notice(title, body):
     import html as _html
@@ -451,11 +308,20 @@ def sync_profile_to_supabase_user(profile: dict) -> None:
         return
 
     user_row = {
-        "user_id":   _notification_user_id(profile),
-        "name":      profile.get("name", ""),
-        "phone":     profile.get("phone"),
-        "interests": profile.get("interests") or [],
-        "track":     profile.get("track", ""),
+        "user_id":       _notification_user_id(profile),
+        "name":          profile.get("name", ""),
+        "phone":         profile.get("phone"),
+        "interests":     profile.get("interests") or [],
+        "track":         profile.get("track", ""),
+        "college":       profile.get("college", ""),
+        "grade":         profile.get("grade", ""),
+        "income_level":  profile.get("income_level"),
+        "gpa":           profile.get("gpa"),
+        "region":        profile.get("region"),
+        "loan":          profile.get("loan"),
+        "gender":        profile.get("gender"),
+        "dorm_interest": profile.get("dorm_interest") or [],
+        "rotc_interest": profile.get("rotc_interest", False),
     }
 
     supabase_url = os.getenv("SUPABASE_URL")
@@ -523,14 +389,12 @@ def get_notification_targets(notices: list[dict], users: list[dict] | None = Non
     ]
     """
     if users is None:
-        if not os.path.exists(PROFILE_CACHE_PATH):
-            return []
         try:
-            with open(PROFILE_CACHE_PATH, encoding="utf-8") as f:
-                profile = json.load(f)
-        except:
+            res   = get_supabase().table("users").select("user_id,name,phone,interests,track").execute()
+            users = res.data or []
+        except Exception as e:
+            print(f"users 테이블 로드 오류: {e}")
             return []
-        users = [profile]
 
     targets   = []
 
@@ -851,8 +715,6 @@ def render_onboarding():
                     }
                     st.session_state.profile  = profile_data
                     st.session_state.onboarded = True
-                    with open(PROFILE_CACHE_PATH, "w", encoding="utf-8") as f:
-                        json.dump(profile_data, f, ensure_ascii=False, indent=2)
                     sync_profile_to_supabase_user(profile_data)
                     st.rerun()
 
@@ -880,7 +742,6 @@ def render_sidebar(profile):
         with btn_col:
             if st.button("내 정보 다시 입력", use_container_width=True):
                 st.session_state.onboarded = False; st.session_state.profile = {}; st.session_state.chat_history = []
-                if os.path.exists(PROFILE_CACHE_PATH): os.remove(PROFILE_CACHE_PATH)
                 st.rerun()
 
 # ============================================================
@@ -928,7 +789,7 @@ def render_chatbot(profile):
     if submitted and user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         cat_filter = st.session_state.get("chat_cat", "전체")
-        results = hybrid_search(user_input, top_k=5, alpha=SEARCH_ALPHA, category_filter=cat_filter if cat_filter != "전체" else None)
+        results = []  # RAG 담당자 검색 함수로 교체 예정
         with st.spinner("답변 생성 중..."):
             reply = generate_llm_reply(user_input, results, st.session_state.profile, is_first=len(st.session_state.chat_history)==1)
         st.session_state.chat_history.append({"role": "bot", "content": reply, "results": results})
@@ -1067,12 +928,9 @@ def main():
 
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
     if "notices"      not in st.session_state: st.session_state.notices      = []
-    if "onboarded"    not in st.session_state:
-        if os.path.exists(PROFILE_CACHE_PATH):
-            with open(PROFILE_CACHE_PATH, encoding="utf-8") as f: saved = json.load(f)
-            if saved: st.session_state.profile = saved; st.session_state.onboarded = True
-            else:     st.session_state.profile = {};    st.session_state.onboarded = False
-        else:         st.session_state.profile = {};    st.session_state.onboarded = False
+    if "onboarded" not in st.session_state:
+        st.session_state.profile  = {}
+        st.session_state.onboarded = False
 
     if not st.session_state.onboarded:
         render_onboarding(); return
@@ -1085,9 +943,6 @@ def main():
             notices = load_notices_from_supabase()
         if notices:
             st.session_state.notices = notices
-            if get_chroma().count() == 0:
-                index_notices(notices)
-                _build_bm25_index.clear()
 
     render_sidebar(profile)
     tab_chat, tab_rec = st.tabs(["  💬 챗봇 검색  ", "  ✨ 추천 게시물  "])
