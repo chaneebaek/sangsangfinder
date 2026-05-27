@@ -304,7 +304,7 @@ def _notification_user_id(profile: dict) -> str:
 
 def sync_profile_to_supabase_user(profile: dict) -> None:
     """로컬 온보딩 프로필을 Supabase users 테이블에 업서트한다."""
-    if not profile.get("phone"):
+    if not profile.get("name"):
         return
 
     user_row = {
