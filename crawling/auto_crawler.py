@@ -54,6 +54,7 @@ SAVE_EVERY = 20    # N건마다 중간 저장
 # ── 카테고리 분류 (api/core/config.py 와 동기화) ──────────────
 from api.core.config import NOTICES_CACHE_PATH  # noqa: E402
 from api.core.utils import infer_category  # noqa: E402
+from crawling.crawler import get_post_content  # noqa: E402
 
 
 # ── 파일 I/O ─────────────────────────────────────────────────
@@ -131,13 +132,9 @@ def fetch_list_page(page: int) -> list[dict]:
 
 
 def fetch_body(url: str) -> str:
-    """공지 본문 텍스트 추출 (OCR·PDF 제외)."""
+    """공지 본문 추출: 텍스트 + 이미지 OCR + PDF."""
     try:
-        res = requests.get(url, headers=HEADERS, timeout=10)
-        res.raise_for_status()
-        div = BeautifulSoup(res.text, "html.parser").select_one(".txt")
-        if div:
-            return div.get_text(" ", strip=True)
+        return get_post_content(url)
     except Exception as e:
         logger.warning("본문 크롤링 실패 (%s): %s", url, e)
     return ""

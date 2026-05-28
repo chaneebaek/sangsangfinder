@@ -36,6 +36,8 @@ _SKIP_IMG_RE = re.compile(
     re.IGNORECASE,
 )
 _NOISE_RE = re.compile(r"[^\w\s가-힣.,!?%\-:/()\[\]@#&*+]")
+_PDF_TEXT_SUFFICIENT_CHARS = 120
+_PDF_TEXT_SPARSE_CHARS = 40
 
 
 # ============================================================
@@ -197,22 +199,35 @@ def _ocr_image(img_url: str) -> str:
 
 def _extract_pdf(pdf_url: str) -> str:
     """PDF URL → 텍스트.
-    - 1차: pdfplumber로 텍스트 레이어 추출 (디지털 PDF)
-    - 2차: 텍스트 없을 시 PyMuPDF로 페이지 → 이미지 변환 후 Clova OCR (스캔 PDF)
+    - pdfplumber로 텍스트 레이어 추출
+    - 텍스트가 부족하거나 이미지 중심인 페이지만 Clova OCR 추가 수행
     """
     try:
         res = requests.get(pdf_url, headers=HEADERS, timeout=15)
         res.raise_for_status()
         pdf_bytes = res.content
 
-        import pdfplumber
-        with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
-            pages = [p.extract_text() or "" for p in pdf.pages[:10]]
-        text = " ".join(pages).strip()
-        if text:
-            return text
+        parts = []
+        pages_to_ocr: set[int] | None = set()
+        try:
+            import pdfplumber
+            with pdfplumber.open(BytesIO(pdf_bytes)) as pdf:
+                for page_num, page in enumerate(pdf.pages[:10]):
+                    page_text = (page.extract_text() or "").strip()
+                    if page_text:
+                        parts.append(page_text)
 
-        # 스캔 PDF → PyMuPDF → Clova OCR
+                    signal_len = len(re.sub(r"\s+", "", page_text))
+                    has_images = bool(getattr(page, "images", None))
+                    text_is_sparse = signal_len < _PDF_TEXT_SPARSE_CHARS
+                    image_heavy = has_images and signal_len < _PDF_TEXT_SUFFICIENT_CHARS
+                    if text_is_sparse or image_heavy:
+                        pages_to_ocr.add(page_num)
+        except ImportError:
+            print("    ℹ️ pdfplumber 미설치 — PDF 텍스트 레이어 추출 스킵")
+            pages_to_ocr = None
+
+        # 비용 절감을 위해 텍스트가 충분한 페이지는 OCR하지 않는다.
         try:
             import cv2
             import fitz
@@ -221,7 +236,12 @@ def _extract_pdf(pdf_url: str) -> str:
             doc       = fitz.open(stream=pdf_bytes, filetype="pdf")
             ocr_parts = []
 
-            for page_num in range(min(len(doc), 10)):
+            target_pages = (
+                range(min(len(doc), 10))
+                if pages_to_ocr is None
+                else sorted(page for page in pages_to_ocr if page < min(len(doc), 10))
+            )
+            for page_num in target_pages:
                 pix = doc[page_num].get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
                 img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
                 if pix.n == 4:
@@ -232,11 +252,14 @@ def _extract_pdf(pdf_url: str) -> str:
                 if lines:
                     ocr_parts.append(" ".join(lines))
 
-            return _clean_ocr_text("\n".join(ocr_parts))
+            ocr_text = _clean_ocr_text("\n".join(ocr_parts))
+            if ocr_text:
+                parts.append(f"[PDF OCR] {ocr_text}")
 
         except ImportError:
             print("    ℹ️ pymupdf 미설치 — 스캔 PDF OCR 스킵 (pip install pymupdf)")
-            return ""
+
+        return " ".join(parts)
 
     except Exception as e:
         print(f"    ⚠️ PDF 추출 실패 ({pdf_url[:50]}): {e}")
