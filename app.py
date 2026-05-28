@@ -3,14 +3,12 @@
 # ============================================================
 
 import os, re, json, hashlib, warnings
-import numpy as np
 from datetime import datetime
 import html
 
 import streamlit as st
 from recommend import (
     load_notices_from_supabase,
-    load_two_tower_model,
     two_tower_recommend,
     classify_job_type,
     get_supabase,
@@ -28,11 +26,6 @@ os.environ["TRANSFORMERS_VERBOSITY"] = "error"
 
 # ── 경로 설정 ─────────────────────────────────────────────────
 _BASE_DIR           = os.path.dirname(os.path.abspath(__file__))
-EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
-SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
-CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
-BASE_MODEL_EMBED    = "jhgan/ko-sroberta-multitask"
-PROFILE_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "profile_cache.json")
 GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY")
 
 os.makedirs(os.path.join(_BASE_DIR, "data"), exist_ok=True)
@@ -56,90 +49,6 @@ PINECONE_CATEGORY_MAP = {
     "기숙사": ["기숙사", "기숙사/생활관"],
     "ROTC": ["ROTC"],
 }
-
-CATEGORY_PREFIX = {
-    "채용정보":   "취업/채용",
-    "강소기업채용": "취업/채용",
-    "인턴쉽":     "취업/채용",
-    "현장실습":   "취업/채용",
-    "교외장학금": "장학금",
-    "국가장학금": "장학금",
-    "공모전":     "공모전/경진대회",
-    "정보":       "공모전/경진대회",
-    "창업정보":   "창업",
-    "창업행사":   "창업",
-}
-
-CATEGORY_KEYWORDS = {
-    "ROTC": [
-        "ROTC", "학군사관", "학군단", "현역병 모집", "예비군", "전문사관", "재병역판정검사"
-    ],
-    "기숙사": [
-        "기숙사", "생활관", "상상빌리지", "우촌학사", "임대기숙사", "사감",
-        "입사생 선발", "대학생주택", "학사관"
-    ],
-    "학생활동/비교과": [
-        "비교과", "동아리", "D-School", "포럼", "대동제", "영상제", "입학식",
-        "HS CREW", "상상파크", "라이프 디자인", "문화탐방", "만우절", "오찬 소통",
-        "Lunch with", "천원의 아침밥", "ESG", "진로집단상담", "리더십 탐험",
-        "학생축제", "문화제", "페스티벌", "소모임", "디즈니 프로그램",
-        "새내기 새로배움터", "새로배움터", "총학생회", "사진전", "진로 설명회",
-        "특강", "교육생", "아카데미", "KDT", "K-디지털", "강좌", "교육과정",
-        "역량강화", "평생교육", "RISE", "마이크로디그리", "TOPCIT", "연구방법론",
-        "초청강연", "특별강연", "핵심역량진단", "폭력예방교육", "필수교육",
-        "전문과정", "SW마에스트로", "코딩 캠프", "직업흥미검사", "심리증진",
-        "연구윤리", "워크숍", "진로지도시스템", "진로 캠프", "심폐소생술",
-        "저작권", "청년인생설계", "과학살롱", "기초학문"
-    ],
-    "대외활동": [
-        "서포터즈", "서포터스", "봉사", "멘토", "봉사자", "기자단", "자원활동",
-        "멘토단", "멘토링", "자원봉사", "홍보대사", "하랑", "소통-e", "앰버서더",
-        "방송국 HBS", "홍보단", "수습기자", "모니터링단", "자문단", "바로알림단",
-        "기획단", "체험단", "발굴단", "순찰대", "제작단", "자원지도자",
-        "볼런톤", "청백리포터"
-    ],
-    "취업/채용": [
-        "채용", "신입", "공채", "취업", "채용박람회", "취업박람회", "모집공고",
-        "직무", "채용연계", "추천채용", "인턴", "인턴십", "일경험", "체험형",
-        "현장실습", "IPP"
-    ],
-    "장학금": [
-        "장학", "장학생", "장학재단", "장학금", "기부장학", "장학사업",
-        "스칼라십", "장학지원", "학자금대출", "학자금", "이자지원", "국가근로",
-        "면학근로", "근로장학", "대출이자", "등록금 납부"
-    ],
-    "학사행정": [
-        "수강신청", "수강정정", "졸업", "휴학", "복학", "학점", "트랙변경",
-        "성적", "폐강", "복수전공", "부전공", "휴복학", "재입학", "연계전공",
-        "Micro Degree", "MD과정", "교양영어", "이수신청", "트랙선택", "계절학기",
-        "수업평가", "학위취득유예", "수강포기", "서면신청", "교차전부", "편입생",
-        "전부(과)", "학위수여식", "오리엔테이션", "반편성고사", "합격자 공고",
-        "합격자 발표", "선발 결과", "이수 면제", "수업운영 안내", "출결",
-        "중간고사", "기말고사", "전공과목 변경", "다전공 신청", "학석사연계",
-        "학사경고", "자기설계전공", "교양필수"
-    ],
-    "창업": [
-        "창업", "창업동아리", "창업지원", "창업멘토링", "스타트업", "아이디어톤",
-        "입주기업", "예비창업", "학생 CEO", "CEO 발굴"
-    ],
-    "국제교류": [
-        "교환학생", "어학연수", "파견", "글로벌버디", "국제교류", "해외", "어학",
-        "글로컬", "글로벌 튜터링", "글로벌 Conversation", "단기연수", "K-Move",
-        "WEST 연수", "글로벌 동행"
-    ],
-    "공모전/경진대회": [
-        "공모전", "경진대회", "챌린지", "해커톤", "대회", "공모", "문학상"
-    ],
-}
-
-_CATEGORY_PATTERN = re.compile(r"^(한성공지|국제|학사|비교과|장학|취업|진로|창업|기타|현장실습|교육프로그램|행사|일반공지)\s*")
-_SUFFIX_PATTERN   = re.compile(r"\s*(새글|hot|NEW)\s*$", re.IGNORECASE)
-_KOREAN_TOKEN_PATTERN = re.compile(r"[가-힣]+")
-_DOMAIN_SPLIT_HINTS = (
-    "해외", "봉사", "봉사활동", "봉사단", "국제", "교류", "파견", "교환학생",
-    "어학연수", "모집", "지원", "장학", "인턴", "현장실습", "채용", "서포터즈",
-    "멘토링", "교육", "특강", "공모전", "경진대회", "기숙사", "국가근로",
-)
 
 COLLEGE_MAP = {
     "크리에이티브인문예술대학": ["영미문화콘텐츠트랙", "영미언어정보트랙", "한국어교육트랙", "역사문화큐레이션트랙", "역사콘텐츠트랙", "지식정보문화트랙", "디지털인문정보학트랙", "동양화전공", "서양화전공", "한국무용전공", "현대무용전공", "발레전공"],
@@ -174,49 +83,9 @@ def _load_image_b64(filename):
 def get_logo_base64(): return _load_image_b64("logo.png")
 def get_hsu_base64():  return _load_image_b64("hsu.png")
 
-def tokenize_ko(text):
-    tokens = re.findall(r"[\w가-힣]+", text.lower())
-    expanded = list(tokens)
-    for token in tokens:
-        if not _KOREAN_TOKEN_PATTERN.fullmatch(token):
-            continue
-        expanded.extend(hint for hint in _DOMAIN_SPLIT_HINTS if hint in token)
-        if 4 <= len(token) <= 12:
-            max_n = min(6, len(token))
-            expanded.extend(
-                token[start:start + n]
-                for n in range(2, max_n + 1)
-                for start in range(0, len(token) - n + 1)
-            )
-    return expanded
-
-def infer_category(title, body):
-    text = f"{title} {body}"
-    if (
-        ("봉사" in text and any(term in text for term in ("해외", "WFK", "월드프렌즈", "KOICA")))
-        or any(term in title for term in ("해외봉사", "청년봉사단", "프로젝트 봉사단", "봉사단"))
-    ):
-        return "봉사/서포터즈"
-
-    for prefix, cat in CATEGORY_PREFIX.items():
-        if title.startswith(prefix): return cat
-    for cat, kws in CATEGORY_KEYWORDS.items():
-        if any(kw in title for kw in kws): return cat
-    for cat, kws in CATEGORY_KEYWORDS.items():
-        if any(kw in body for kw in kws): return cat
-    return "기타"
-
 # ============================================================
 # 모델 로더
 # ============================================================
-
-@st.cache_resource
-@st.cache_resource
-@st.cache_resource
-@st.cache_resource
-@st.cache_data(ttl=600, show_spinner=False)
-def _markdown_log_cell(value):
-    return str(value or "").replace("\r", " ").replace("\n", " ").replace("|", r"\|")
 
 def summarize_notice(title, body):
     import html as _html
@@ -233,16 +102,33 @@ def get_gemini_model(api_key):
     except Exception as e:
         st.error(f"[Gemini 오류] {e}"); return None
 
+def _result_content_for_llm(result: dict, body_map: dict[str, str] | None = None) -> str:
+    content = str(result.get("content") or "").strip()
+    if len(content) >= 80:
+        return content
+    if body_map:
+        fallback = str(body_map.get(result.get("url"), "")).strip()
+        if fallback:
+            return fallback
+    return content
+
 def generate_llm_reply(user_query, results, profile, is_first=False):
     model = get_gemini_model(GEMINI_API_KEY) if GEMINI_API_KEY else None
     if not model: return f"총 {len(results)}개의 관련 공지를 찾았습니다." if results else "관련 공지를 찾지 못했습니다."
     if not results: return "관련 공지를 찾지 못했습니다. 다른 키워드로 검색해보세요."
-    notices_data = load_notices_from_supabase()
-    body_map     = {n["url"]: n.get("body","") for n in notices_data}
-    context = "\n\n".join([
-        f"[공지 {i+1}]\n제목: {r['title']}\n날짜: {r['date']}\n내용: {(r.get('content') or body_map.get(r['url'],''))[:800]}"
-        for i, r in enumerate(results[:3])
-    ])
+    top_results = results[:3]
+    needs_body_fallback = any(len(str(r.get("content") or "").strip()) < 80 for r in top_results)
+    body_map = {}
+    if needs_body_fallback:
+        notices_data = load_notices_from_supabase()
+        body_map = {n["url"]: n.get("body", "") for n in notices_data}
+    context_parts = []
+    for i, r in enumerate(top_results, start=1):
+        body = _result_content_for_llm(r, body_map)[:800]
+        context_parts.append(
+            f"[공지 {i}]\n제목: {r.get('title', '')}\n날짜: {r.get('date', '')}\n내용: {body if body else '(본문 없음)'}"
+        )
+    context = "\n\n".join(context_parts)
     greeting = f"{profile.get('name','')}님, 안녕하세요. " if is_first else ""
     prompt = f"""당신은 한성대학교 공지사항 안내 도우미입니다.
 아래 공지사항 본문을 바탕으로 사용자 질문에 직접적이고 구체적으로 답변하세요.
@@ -957,7 +843,6 @@ def main():
     st.set_page_config(page_title="상상파인더", page_icon=hsu_icon, layout="wide", initial_sidebar_state="expanded")
 
     if "chat_history" not in st.session_state: st.session_state.chat_history = []
-    if "notices"      not in st.session_state: st.session_state.notices      = []
     if "onboarded" not in st.session_state:
         st.session_state.profile  = {}
         st.session_state.onboarded = False
@@ -967,12 +852,6 @@ def main():
 
     st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
     profile = st.session_state.profile
-
-    if not st.session_state.notices:
-        with st.spinner("공지 불러오는 중..."):
-            notices = load_notices_from_supabase()
-        if notices:
-            st.session_state.notices = notices
 
     render_sidebar(profile)
     tab_chat, tab_rec = st.tabs(["  💬 챗봇 검색  ", "  ✨ 추천 게시물  "])
