@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from .core.models import get_chroma, load_notices_cache
+from .core.models import get_vector_collection, load_notices_cache
 from .schemas import (
     HealthResponse,
     NoticeItem,
@@ -35,7 +35,7 @@ app = FastAPI(
 def health_check():
     notices = load_notices_cache()
     try:
-        indexed = get_chroma().count()
+        indexed = get_vector_collection().count()
     except Exception:
         indexed = 0
     return HealthResponse(

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 from .config import (
     EMBED_MODEL_PATH, BASE_MODEL_EMBED, EMBEDDER_BACKEND, SIMCSE_POOLING,
     SUMMARY_MODEL_PATH, CLASSIFY_MODEL_PATH,
-    CHROMA_DB_PATH, INDEX_MANIFEST_PATH, NOTICES_CACHE_PATH,
+    INDEX_MANIFEST_PATH, NOTICES_CACHE_PATH,
     VECTOR_DB, PINECONE_API_KEY, PINECONE_INDEX_NAME, PINECONE_CLOUD,
     PINECONE_REGION, PINECONE_NAMESPACE, PINECONE_CACHE_PATH, EMBEDDING_DIM,
     CHUNK_SIZE, CHUNK_OVERLAP,
@@ -25,7 +25,7 @@ _embed_model      = None
 _summary_pipeline = None
 _classifier       = None
 _label_map: dict  = {}
-_chroma           = None
+_vector_collection = None
 
 EMBEDDING_PIPELINE_VERSION = (
     f"simcse-{SIMCSE_POOLING}-v1"
@@ -214,7 +214,7 @@ def _metadata_matches(meta: dict | None, where: dict | None) -> bool:
 
 
 class PineconeCollectionAdapter:
-    """Small Chroma-like facade over Pinecone plus a local chunk cache for BM25."""
+    """Small collection facade over Pinecone plus a local chunk cache for BM25."""
 
     FETCH_BATCH_SIZE = 100
     DELETE_BATCH_SIZE = 1000
@@ -435,15 +435,15 @@ def _get_pinecone_collection() -> PineconeCollectionAdapter:
     )
 
 
-def get_chroma():
-    global _chroma
-    if _chroma is None:
+def get_vector_collection():
+    global _vector_collection
+    if _vector_collection is None:
         if VECTOR_DB != "pinecone":
             raise RuntimeError(
                 f"Pinecone is required for the production vector store; got VECTOR_DB={VECTOR_DB!r}."
             )
-        _chroma = _get_pinecone_collection()
-    return _chroma
+        _vector_collection = _get_pinecone_collection()
+    return _vector_collection
 
 
 def classify_notice(title: str, body: str) -> str:
@@ -494,7 +494,7 @@ def get_index_fingerprint() -> tuple[int, int, str]:
     """Return a cheap fingerprint for search-side cache invalidation."""
     manifest = _load_index_manifest()
     return (
-        get_chroma().count(),
+        get_vector_collection().count(),
         int(manifest.get("revision", 0)),
         manifest.get("index_config", {}).get("signature", ""),
     )
@@ -524,7 +524,7 @@ def index_notices(
     embed_batch_size: int = 16,
 ) -> int:
     """Index notices into the configured vector DB. Returns count of newly indexed notices."""
-    collection = get_chroma()
+    collection = get_vector_collection()
     manifest   = _load_index_manifest()
     manifest_notices = manifest["notices"]
     notice_batch_size = max(1, notice_batch_size)

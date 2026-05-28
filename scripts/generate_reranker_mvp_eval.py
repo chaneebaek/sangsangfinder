@@ -15,11 +15,13 @@ ROOT = Path(__file__).resolve().parent.parent
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("VECTOR_DB", "pinecone")
 
 from api.core.utils import clean_title, tokenize_ko  # noqa: E402
+from api.core.config import PINECONE_INDEX_NAME, PINECONE_NAMESPACE  # noqa: E402
+from api.core.models import get_embed_model, get_vector_collection  # noqa: E402
 
 
 TODAY = date(2026, 5, 26)
@@ -29,9 +31,6 @@ DATA_DIR = ROOT / "data"
 QUERY_PATH = DATA_DIR / "reranker_eval_queries.json"
 OUTPUT_PATH = DATA_DIR / "reranker_mvp_scored_top50.json"
 SUMMARY_PATH = DATA_DIR / "reranker_mvp_summary.json"
-CHROMA_PATH = ROOT / "chroma_db_eval_2025_2026"
-COLLECTION_NAME = "hansung_notices"
-
 
 ACTION_KEYWORDS = {
     "apply": [
@@ -387,19 +386,16 @@ def minmax(values: list[float]) -> list[float]:
 
 
 def build_hybrid_searcher():
-    import chromadb
     from rank_bm25 import BM25Okapi
-    from sentence_transformers import SentenceTransformer
 
-    client = chromadb.PersistentClient(path=str(CHROMA_PATH))
-    collection = client.get_collection(COLLECTION_NAME)
+    collection = get_vector_collection()
     all_data = collection.get(include=["documents", "metadatas"])
     ids = all_data["ids"]
     documents = all_data["documents"]
     metadatas = all_data["metadatas"]
     tokenized = [tokenize_ko(doc) for doc in documents]
     bm25 = BM25Okapi(tokenized)
-    model = SentenceTransformer("jhgan/ko-sroberta-multitask", local_files_only=True)
+    model = get_embed_model()
 
     by_url: dict[str, dict[str, Any]] = {}
     for corpus_path in [DATA_DIR / "data_2025.json", DATA_DIR / "data_2026.json", DATA_DIR / "2026_notice.json"]:
@@ -560,8 +556,9 @@ def main() -> None:
         "search": {
             "candidate_count": 50,
             "alpha_vector_weight": 0.5,
-            "chroma_path": str(CHROMA_PATH.relative_to(ROOT)),
-            "collection": COLLECTION_NAME,
+            "vector_db": "pinecone",
+            "pinecone_index": PINECONE_INDEX_NAME,
+            "pinecone_namespace": PINECONE_NAMESPACE,
         },
         "scoring_weights": {
             "retrieval_norm": 0.45,

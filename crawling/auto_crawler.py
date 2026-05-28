@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-auto_crawler.py — 한성대 공지 증분 크롤러 + ChromaDB 자동 인덱서
+auto_crawler.py — 한성대 공지 증분 크롤러 + Pinecone 자동 인덱서
 
 실행:
   python crawling/auto_crawler.py              # 1회 실행 (cron/launchd 용)
   python crawling/auto_crawler.py --daemon     # 1시간 간격 무한 반복
-  python crawling/auto_crawler.py --no-index   # 크롤링만 (ChromaDB 인덱싱 생략)
+  python crawling/auto_crawler.py --no-index   # 크롤링만 (Pinecone 인덱싱 생략)
   python crawling/auto_crawler.py --max-pages 10  # 최대 탐색 페이지 수 조정
 
 출력:
@@ -251,13 +251,13 @@ def run_once(
 
 
 def _index(items: list[dict]) -> None:
-    """신규 공지를 ChromaDB에 인덱싱."""
+    """신규 공지를 Pinecone에 인덱싱."""
     try:
         from api.core.models import index_notices  # noqa: PLC0415
         n = index_notices(items)
-        logger.info("ChromaDB 인덱싱 완료: %d건", n)
+        logger.info("Pinecone 인덱싱 완료: %d건", n)
     except Exception:
-        logger.exception("ChromaDB 인덱싱 실패")
+        logger.exception("Pinecone 인덱싱 실패")
 
 
 # ── 데몬 모드 ─────────────────────────────────────────────────
@@ -308,7 +308,7 @@ def main() -> None:
     )
     ap.add_argument("--daemon",     action="store_true",  help="데몬 모드 (반복 실행)")
     ap.add_argument("--interval",   type=int, default=3600, help="데몬 실행 간격(초)")
-    ap.add_argument("--no-index",   action="store_true",  dest="no_index", help="ChromaDB 인덱싱 생략")
+    ap.add_argument("--no-index",   action="store_true",  dest="no_index", help="Pinecone 인덱싱 생략")
     ap.add_argument("--max-pages",  type=int, default=5,  dest="max_pages", help="탐색 최대 페이지 수")
     ap.add_argument("--storage", choices=["file", "supabase"], default="file", help="공지 저장소")
     ap.add_argument("--init-db", action="store_true", help="Supabase notices 테이블/인덱스 생성")

@@ -43,7 +43,7 @@ class FakeIndex:
 
 
 class PineconeVectorStoreTests(unittest.TestCase):
-    def test_pinecone_adapter_preserves_chroma_like_contract(self):
+    def test_pinecone_adapter_preserves_collection_contract(self):
         with tempfile.TemporaryDirectory() as tmp_dir:
             adapter = PineconeCollectionAdapter(
                 index=FakeIndex(),
@@ -103,7 +103,7 @@ class PineconeVectorStoreTests(unittest.TestCase):
             self.assertEqual(adapter.get(ids=["notice-1_0"])["ids"], [])
             self.assertEqual(adapter.count(), 1)
 
-    def test_get_chroma_can_initialize_pinecone_adapter(self):
+    def test_get_vector_collection_can_initialize_pinecone_adapter(self):
         fake_index = FakeIndex()
 
         class FakePinecone:
@@ -131,7 +131,7 @@ class PineconeVectorStoreTests(unittest.TestCase):
             models = importlib.import_module("api.core.models")
             with (
                 mock.patch.dict(sys.modules, {"pinecone": fake_module}),
-                mock.patch.object(models, "_chroma", None),
+                mock.patch.object(models, "_vector_collection", None),
                 mock.patch.object(models, "VECTOR_DB", "pinecone"),
                 mock.patch.object(models, "PINECONE_API_KEY", "test-key"),
                 mock.patch.object(models, "PINECONE_INDEX_NAME", "hansung-notices-test"),
@@ -139,7 +139,7 @@ class PineconeVectorStoreTests(unittest.TestCase):
                 mock.patch.object(models, "PINECONE_CACHE_PATH", str(Path(tmp_dir) / "chunks.json")),
                 mock.patch.object(models, "EMBEDDING_DIM", 2),
             ):
-                collection = models.get_chroma()
+                collection = models.get_vector_collection()
 
         self.assertIsInstance(collection, PineconeCollectionAdapter)
         self.assertIs(collection.index, fake_index)

@@ -10,26 +10,26 @@ from tests.test_pinecone_vector_store import FakeIndex
 
 
 class PineconeOnlyGuardTests(unittest.TestCase):
-    def test_rejects_chroma_vector_db_configuration(self):
+    def test_rejects_non_pinecone_vector_db_configuration(self):
         models = importlib.import_module("api.core.models")
 
         with (
-            mock.patch.object(models, "_chroma", None),
-            mock.patch.object(models, "VECTOR_DB", "chroma"),
+            mock.patch.object(models, "_vector_collection", None),
+            mock.patch.object(models, "VECTOR_DB", "local"),
             self.assertRaisesRegex(RuntimeError, "Pinecone"),
         ):
-            models.get_chroma()
+            models.get_vector_collection()
 
     def test_rejects_missing_pinecone_api_key(self):
         models = importlib.import_module("api.core.models")
 
         with (
-            mock.patch.object(models, "_chroma", None),
+            mock.patch.object(models, "_vector_collection", None),
             mock.patch.object(models, "VECTOR_DB", "pinecone"),
             mock.patch.object(models, "PINECONE_API_KEY", None),
             self.assertRaisesRegex(RuntimeError, "PINECONE_API_KEY"),
         ):
-            models.get_chroma()
+            models.get_vector_collection()
 
     def test_accepts_pinecone_configuration(self):
         fake_index = FakeIndex()
@@ -55,7 +55,7 @@ class PineconeOnlyGuardTests(unittest.TestCase):
             models = importlib.import_module("api.core.models")
             with (
                 mock.patch.dict(sys.modules, {"pinecone": fake_module}),
-                mock.patch.object(models, "_chroma", None),
+                mock.patch.object(models, "_vector_collection", None),
                 mock.patch.object(models, "VECTOR_DB", "pinecone"),
                 mock.patch.object(models, "PINECONE_API_KEY", "test-key"),
                 mock.patch.object(models, "PINECONE_INDEX_NAME", "hansung-notices-test"),
@@ -63,7 +63,7 @@ class PineconeOnlyGuardTests(unittest.TestCase):
                 mock.patch.object(models, "PINECONE_CACHE_PATH", str(Path(tmp_dir) / "chunks.json")),
                 mock.patch.object(models, "EMBEDDING_DIM", 2),
             ):
-                collection = models.get_chroma()
+                collection = models.get_vector_collection()
 
         self.assertIs(collection.index, fake_index)
         self.assertEqual(collection.namespace, "test")

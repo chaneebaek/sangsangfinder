@@ -5,8 +5,9 @@
   "search": {
     "candidate_count": 50,
     "alpha_vector_weight": 0.5,
-    "chroma_path": "chroma_db_eval_2025_2026",
-    "collection": "hansung_notices"
+    "vector_db": "pinecone",
+    "pinecone_index": "hansung-notices",
+    "pinecone_namespace": "prod"
   },
   "scoring_weights": {
     "retrieval_norm": 0.45,

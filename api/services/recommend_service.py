@@ -6,12 +6,12 @@ from __future__ import annotations
 
 import re
 
-from ..core.models import get_embed_model, get_chroma, get_summary_pipeline
+from ..core.models import get_embed_model, get_vector_collection, get_summary_pipeline
 
 
 def recommend_notices(user_profile: dict, top_k: int = 5) -> list[dict]:
     model      = get_embed_model()
-    collection = get_chroma()
+    collection = get_vector_collection()
 
     interests_str = ", ".join(user_profile.get("interests", []))
     query = (

@@ -27,7 +27,7 @@ if ROOT not in sys.path:
 os.environ.setdefault("VECTOR_DB", "pinecone")
 
 from crawling.supabase_store import SOURCE, _connect  # noqa: E402
-from api.core.models import _notice_doc_id, get_chroma, index_notices  # noqa: E402
+from api.core.models import _notice_doc_id, get_vector_collection, index_notices  # noqa: E402
 
 
 def _load_supabase_notices(
@@ -92,7 +92,7 @@ def _load_supabase_notices(
 
 def _filter_missing_from_vector_db(notices: list[dict[str, Any]]) -> list[dict[str, Any]]:
     chunk0_ids = [f"{_notice_doc_id(item['url'])}_0" for item in notices]
-    existing_ids = set(get_chroma().get(ids=chunk0_ids)["ids"]) if chunk0_ids else set()
+    existing_ids = set(get_vector_collection().get(ids=chunk0_ids)["ids"]) if chunk0_ids else set()
     return [
         item
         for item, chunk0_id in zip(notices, chunk0_ids)

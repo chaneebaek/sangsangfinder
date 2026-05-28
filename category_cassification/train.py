@@ -4,7 +4,7 @@
 # Colab 실행 순서:
 # ────────────────────────────────────────────────────────────
 # [셀 1] 패키지 설치
-# !pip install -q chromadb sentence-transformers requests \
+# !pip install -q pinecone sentence-transformers requests \
 #              beautifulsoup4 rank_bm25 transformers \
 #              datasets scikit-learn
 #

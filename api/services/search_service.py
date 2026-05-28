@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 
 from ..core.config import GEMINI_API_KEY, SEARCH_ALPHA
-from ..core.models import get_embed_model, get_chroma, get_index_fingerprint, load_notices_cache
+from ..core.models import get_embed_model, get_vector_collection, get_index_fingerprint, load_notices_cache
 from ..core.utils import tokenize_ko
 
 # Module-level BM25 cache (replaces @st.cache_data from app.py)
@@ -18,7 +18,7 @@ def _build_bm25_index(category_filter: str | None):
     from rank_bm25 import BM25Okapi
 
     key        = category_filter if category_filter and category_filter != "전체" else "전체"
-    collection = get_chroma()
+    collection = get_vector_collection()
     fingerprint = get_index_fingerprint()
     cached = _bm25_cache.get(key)
     if cached and cached[0] == fingerprint:
@@ -93,7 +93,7 @@ def hybrid_search(
     category_filter: str | None = None,
 ) -> list[dict]:
     model      = get_embed_model()
-    collection = get_chroma()
+    collection = get_vector_collection()
     cat_key    = category_filter if category_filter and category_filter != "전체" else None
     where      = {"category": category_filter} if cat_key else None
 

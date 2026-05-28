@@ -10,7 +10,7 @@ except ImportError:
 
 _BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-VECTOR_DB           = os.getenv("VECTOR_DB", "pinecone" if os.getenv("PINECONE_API_KEY") else "chroma").lower()
+VECTOR_DB           = os.getenv("VECTOR_DB", "pinecone").lower()
 EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
 SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
 CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
@@ -18,10 +18,9 @@ BASE_MODEL_EMBED    = os.getenv("BASE_MODEL_EMBED", "jhgan/ko-sroberta-multitask
 EMBEDDER_BACKEND    = os.getenv("EMBEDDER_BACKEND", "sentence-transformers").lower()
 SIMCSE_POOLING      = os.getenv("SIMCSE_POOLING", "cls").lower()
 SEARCH_ALPHA        = float(os.getenv("SEARCH_ALPHA", "0.5"))
-CHROMA_DB_PATH      = os.getenv("CHROMA_DB_PATH", os.path.join(_BASE_DIR, "chroma_db"))
 VECTOR_STATE_PATH   = os.getenv(
     "VECTOR_STATE_PATH",
-    CHROMA_DB_PATH if VECTOR_DB == "chroma" else os.path.join(_BASE_DIR, "pinecone_index"),
+    os.path.join(_BASE_DIR, "pinecone_index"),
 )
 INDEX_MANIFEST_PATH = os.path.join(VECTOR_STATE_PATH, "index_manifest.json")
 NOTICES_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "data_2026.json")
