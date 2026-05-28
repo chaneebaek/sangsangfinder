@@ -22,6 +22,7 @@ import time
 from datetime import datetime
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from bs4 import BeautifulSoup
@@ -50,6 +51,7 @@ LIST_URL = f"{BASE_URL}/bbs/hansung/2127/artclList.do"
 
 DELAY      = 0.5   # 요청 간 딜레이(초) — 서버 부하 방지
 SAVE_EVERY = 20    # N건마다 중간 저장
+KST = ZoneInfo("Asia/Seoul")
 
 # ── 카테고리 분류 (api/core/config.py 와 동기화) ──────────────
 from api.core.config import NOTICES_CACHE_PATH  # noqa: E402
@@ -149,7 +151,7 @@ def run_once(
     init_db: bool = False,
 ) -> int:
     """증분 크롤링 1회 실행. 신규 수집 건수 반환."""
-    year = str(datetime.now().year)
+    year = str(datetime.now(KST).year)
     path = _out_path()
 
     if storage == "supabase":
@@ -295,7 +297,7 @@ def run_daemon(interval: int, no_index: bool, max_pages: int, storage: str, init
 
 def _is_business_hours() -> bool:
     """평일 09:00-18:00 KST 여부 확인."""
-    now = datetime.now()
+    now = datetime.now(KST)
     return now.weekday() < 5 and 9 <= now.hour < 18
 
 
@@ -317,7 +319,7 @@ def main() -> None:
         run_daemon(args.interval, args.no_index, args.max_pages, args.storage, args.init_db)
     else:
         if not args.force and not _is_business_hours():
-            logger.info("업무시간 외 (%s) — 크롤링 생략", datetime.now().strftime("%a %H:%M"))
+            logger.info("업무시간 외 (%s KST) — 크롤링 생략", datetime.now(KST).strftime("%a %H:%M"))
             return
         run_once(
             no_index=args.no_index,
