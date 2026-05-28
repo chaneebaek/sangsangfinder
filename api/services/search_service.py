@@ -14,17 +14,31 @@ from ..core.utils import tokenize_ko
 _bm25_cache: dict[str, tuple[tuple[int, int, str], tuple]] = {}
 
 
-def _build_bm25_index(category_filter: str | None):
+def _category_filter_key(category_filter: str | list[str] | None) -> str:
+    if isinstance(category_filter, list):
+        values = [cat for cat in category_filter if cat and cat != "전체"]
+        return "|".join(sorted(values)) if values else "전체"
+    return category_filter if category_filter and category_filter != "전체" else "전체"
+
+
+def _category_filter_where(category_filter: str | list[str] | None) -> dict | None:
+    if isinstance(category_filter, list):
+        values = [cat for cat in category_filter if cat and cat != "전체"]
+        return {"category": {"$in": values}} if values else None
+    return {"category": category_filter} if category_filter and category_filter != "전체" else None
+
+
+def _build_bm25_index(category_filter: str | list[str] | None):
     from rank_bm25 import BM25Okapi
 
-    key        = category_filter if category_filter and category_filter != "전체" else "전체"
+    key        = _category_filter_key(category_filter)
     collection = get_vector_collection()
     fingerprint = get_index_fingerprint()
     cached = _bm25_cache.get(key)
     if cached and cached[0] == fingerprint:
         return cached[1]
 
-    where      = {"category": category_filter} if key != "전체" else None
+    where      = _category_filter_where(category_filter)
     all_data   = collection.get(include=["documents", "metadatas"], where=where)
 
     documents = all_data["documents"]
@@ -90,14 +104,13 @@ def hybrid_search(
     query: str,
     top_k: int = 5,
     alpha: float = SEARCH_ALPHA,
-    category_filter: str | None = None,
+    category_filter: str | list[str] | None = None,
 ) -> list[dict]:
     model      = get_embed_model()
     collection = get_vector_collection()
-    cat_key    = category_filter if category_filter and category_filter != "전체" else None
-    where      = {"category": category_filter} if cat_key else None
+    where      = _category_filter_where(category_filter)
 
-    bm25, ids, documents, metadatas = _build_bm25_index(cat_key)
+    bm25, ids, documents, metadatas = _build_bm25_index(category_filter)
     if bm25 is None:
         return []
 

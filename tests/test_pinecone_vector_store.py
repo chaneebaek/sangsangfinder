@@ -10,6 +10,19 @@ from unittest import mock
 from api.core.models import PineconeCollectionAdapter
 
 
+def _matches_filter(metadata, filter):
+    if not filter:
+        return True
+    for key, value in filter.items():
+        actual = metadata.get(key)
+        if isinstance(value, dict) and "$in" in value:
+            if actual not in value["$in"]:
+                return False
+        elif actual != value:
+            return False
+    return True
+
+
 class FakeIndex:
     def __init__(self):
         self.vectors = {}
@@ -31,7 +44,7 @@ class FakeIndex:
         matches = []
         for id_, stored in self.vectors.items():
             metadata = stored["metadata"]
-            if filter and any(metadata.get(key) != value for key, value in filter.items()):
+            if not _matches_filter(metadata, filter):
                 continue
             score = sum(a * b for a, b in zip(vector, stored["values"]))
             matches.append(SimpleNamespace(id=id_, score=score, metadata=metadata))
@@ -76,6 +89,10 @@ class PineconeVectorStoreTests(unittest.TestCase):
             filtered = adapter.get(include=["documents"], where={"category": "인턴십"})
             self.assertEqual(filtered["ids"], ["notice-2_0"])
             self.assertEqual(filtered["documents"], ["인턴십 모집 안내"])
+
+            filtered_in = adapter.get(include=["documents"], where={"category": {"$in": ["장학금", "인턴십"]}})
+            self.assertEqual(filtered_in["ids"], ["notice-1_0", "notice-2_0"])
+            self.assertEqual(filtered_in["documents"], ["장학금 신청 안내", "인턴십 모집 안내"])
 
             fetched = adapter.get(ids=["notice-1_0", "missing"], include=["documents", "metadatas"])
             self.assertEqual(fetched["ids"], ["notice-1_0"])

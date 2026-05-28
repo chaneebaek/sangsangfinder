@@ -15,6 +15,7 @@ from recommend import (
     classify_job_type,
     get_supabase,
 )
+from api.services.search_service import hybrid_search as pinecone_hybrid_search
 
 try:
     from dotenv import load_dotenv
@@ -42,6 +43,19 @@ CATEGORIES = [
     "대외활동", "공모전/경진대회", "국제교류", "창업",
     "장학금", "기숙사", "ROTC"
 ]
+
+PINECONE_CATEGORY_MAP = {
+    "취업/채용": ["취업/채용", "인턴십"],
+    "학사행정": ["학사행정"],
+    "학생활동/비교과": ["학생활동/비교과", "비교과", "교육/특강"],
+    "대외활동": ["대외활동", "봉사/서포터즈"],
+    "공모전/경진대회": ["공모전/경진대회"],
+    "국제교류": ["국제교류"],
+    "창업": ["창업"],
+    "장학금": ["장학금", "학자금/근로장학"],
+    "기숙사": ["기숙사", "기숙사/생활관"],
+    "ROTC": ["ROTC"],
+}
 
 CATEGORY_PREFIX = {
     "채용정보":   "취업/채용",
@@ -748,6 +762,22 @@ def render_sidebar(profile):
 # 챗봇
 # ============================================================
 
+def search_rag_notices(query: str, category_filter: str = "전체", top_k: int = 5) -> list[dict]:
+    try:
+        pinecone_categories = (
+            PINECONE_CATEGORY_MAP.get(category_filter, [category_filter])
+            if category_filter != "전체"
+            else None
+        )
+        return pinecone_hybrid_search(
+            query=query,
+            top_k=top_k,
+            category_filter=pinecone_categories,
+        )
+    except Exception as e:
+        st.error(f"[Pinecone 검색 오류] {e}")
+        return []
+
 def render_chatbot(profile):
     with st.container(border=True):
         st.markdown('<div class="mac-bar"><div class="mac-dot mac-dot-red"></div><div class="mac-dot mac-dot-yellow"></div><div class="mac-dot mac-dot-green"></div></div><div style="margin-top:12px;"></div>', unsafe_allow_html=True)
@@ -789,7 +819,7 @@ def render_chatbot(profile):
     if submitted and user_input:
         st.session_state.chat_history.append({"role": "user", "content": user_input})
         cat_filter = st.session_state.get("chat_cat", "전체")
-        results = []  # RAG 담당자 검색 함수로 교체 예정
+        results = search_rag_notices(user_input, cat_filter, top_k=5)
         with st.spinner("답변 생성 중..."):
             reply = generate_llm_reply(user_input, results, st.session_state.profile, is_first=len(st.session_state.chat_history)==1)
         st.session_state.chat_history.append({"role": "bot", "content": reply, "results": results})

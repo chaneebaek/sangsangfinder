@@ -210,7 +210,14 @@ def _metadata_matches(meta: dict | None, where: dict | None) -> bool:
         return True
     if not meta:
         return False
-    return all(meta.get(key) == value for key, value in where.items())
+    for key, value in where.items():
+        actual = meta.get(key)
+        if isinstance(value, dict) and "$in" in value:
+            if actual not in value["$in"]:
+                return False
+        elif actual != value:
+            return False
+    return True
 
 
 class PineconeCollectionAdapter:
