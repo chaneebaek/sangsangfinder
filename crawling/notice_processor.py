@@ -237,6 +237,11 @@ def process_notices(notices: list[dict], batch_size: int = 10) -> int:
         time.sleep(1)  # Gemini API rate limit 방지
 
     print(f"\n처리 완료! 성공: {success}개 | 실패: {failed}개")
+    if failed > 0:
+        raise RuntimeError(
+            f"Notice processing failed for {failed}/{len(notices)} notices "
+            f"(success={success}). Check the errors above."
+        )
     return success
 
 
