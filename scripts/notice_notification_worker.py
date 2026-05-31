@@ -35,8 +35,6 @@ try:
 except ImportError:
     pass
 
-from app import get_notification_targets  # noqa: E402
-
 LOG_PATH = ROOT / "scripts" / "notice_notification_worker.log"
 logging.basicConfig(
     level=logging.INFO,
@@ -98,7 +96,7 @@ def load_recent_notices(client, lookback_minutes: int, limit: int) -> list[dict[
                 cur.execute(
                     """
                     select id, notice_id, title, url, posted_at, category,
-                           category_type, job_types, body, crawled_at
+                           category_type, job_types, body, notice_score, embedding, crawled_at
                     from public.notices
                     where crawled_at >= %s
                     order by crawled_at desc
@@ -111,7 +109,7 @@ def load_recent_notices(client, lookback_minutes: int, limit: int) -> list[dict[
 
     res = (
         client.table("notices")
-        .select("id,notice_id,title,url,posted_at,category,category_type,job_types,body,crawled_at")
+        .select("id,notice_id,title,url,posted_at,category,category_type,job_types,body,notice_score,embedding,crawled_at")
         .gte("crawled_at", since.isoformat())
         .order("crawled_at", desc=True)
         .limit(limit)
@@ -140,6 +138,155 @@ def load_users(client) -> list[dict[str, Any]]:
         .execute()
     )
     return [user for user in (res.data or []) if user.get("phone")]
+
+
+def load_max_notice_score(client) -> float:
+    if client is None:
+        import psycopg
+
+        with psycopg.connect(os.environ["SUPABASE_DB_URL"], connect_timeout=10) as conn:
+            with conn.cursor() as cur:
+                cur.execute("select max(coalesce(notice_score, 0)) from public.notices")
+                value = (cur.fetchone() or [0])[0]
+                return float(value or 1.0)
+
+    res = (
+        client.table("notices")
+        .select("notice_score")
+        .order("notice_score", desc=True)
+        .limit(1)
+        .execute()
+    )
+    data = res.data or []
+    if not data:
+        return 1.0
+    return float(data[0].get("notice_score") or 1.0)
+
+
+def parse_json_array(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return [value] if value else []
+    return []
+
+
+def parse_embedding(value: Any) -> list[float] | None:
+    parsed = parse_json_array(value)
+    if not parsed:
+        return None
+    try:
+        return [float(item) for item in parsed]
+    except (TypeError, ValueError):
+        return None
+
+
+def build_notification_targets(
+    notices: list[dict[str, Any]],
+    users: list[dict[str, Any]],
+    max_notice_score: float,
+    threshold: float,
+) -> list[dict[str, Any]]:
+    from recommend import (
+        CATEGORY_WEIGHT,
+        FILTER_CATEGORIES,
+        JOB_TYPE_WEIGHT,
+        MODEL_WEIGHT,
+        OLD_CATEGORIES,
+        PENALTY_CATEGORIES,
+        SCORE_WEIGHT,
+        get_job_score,
+        load_two_tower_model,
+    )
+
+    sbert, model, device = load_two_tower_model()
+    max_notice_score = max(max_notice_score, 1.0)
+    targets: list[dict[str, Any]] = []
+    user_vec_cache: dict[str, Any] = {}
+
+    for user in users:
+        if not user or not user.get("phone"):
+            continue
+
+        interests = parse_json_array(user.get("interests"))
+        rec_interests = [interest for interest in interests if interest not in FILTER_CATEGORIES]
+        if not rec_interests:
+            continue
+
+        user_id = user.get("user_id") or user.get("id") or user.get("phone")
+        user_text = f"{user.get('college', '')} {user.get('track', '')} {user.get('grade', '')} 관심사: {', '.join(rec_interests)}"
+        if user_id not in user_vec_cache:
+            import torch
+
+            user_emb = sbert.encode([user_text], convert_to_numpy=True)
+            user_tensor = torch.tensor(user_emb, dtype=torch.float).to(device)
+            with torch.no_grad():
+                user_vec_cache[user_id] = model.forward_user(user_tensor).cpu().numpy()
+
+        user_vec = user_vec_cache[user_id]
+
+        for notice in notices:
+            category = notice.get("category", "")
+            if category in FILTER_CATEGORIES or category in OLD_CATEGORIES:
+                continue
+            if float(notice.get("notice_score") or 0.0) <= 0.01:
+                continue
+
+            item_emb = parse_embedding(notice.get("embedding"))
+            if item_emb is None:
+                logger.info("공지 embedding 없음, 알림 점수 계산 제외: notice=%s", notice.get("id"))
+                continue
+
+            import numpy as np
+
+            sim_score = float(np.dot(np.array(item_emb, dtype=np.float32), user_vec.T).flatten()[0])
+            sim_norm = (sim_score + 1.0) / 2.0
+            n_score = float(notice.get("notice_score") or 0.0) / max_notice_score
+
+            if category in rec_interests:
+                cat_score = 1.0
+            elif category in PENALTY_CATEGORIES:
+                cat_score = -1.0
+            else:
+                cat_score = 0.0
+
+            job_score = get_job_score(user.get("track", ""), notice)
+            final_score = (
+                MODEL_WEIGHT * sim_norm
+                + CATEGORY_WEIGHT * cat_score
+                + JOB_TYPE_WEIGHT * job_score
+                + SCORE_WEIGHT * n_score
+            )
+            if final_score < threshold:
+                continue
+
+            category_type = parse_json_array(notice.get("category_type") or notice.get("job_types"))
+            targets.append({
+                "notice_db_id": notice.get("id"),
+                "notice_id": notice.get("notice_id", ""),
+                "title": notice.get("title", ""),
+                "category": category,
+                "category_type": category_type,
+                "url": notice.get("url", ""),
+                "user_id": user_id,
+                "user_name": user.get("name", ""),
+                "phone": user.get("phone"),
+                "track": user.get("track", ""),
+                "interests": interests,
+                "final_score": final_score,
+                "sim_score": sim_norm,
+                "cat_score": cat_score,
+                "job_score": job_score,
+                "n_score": n_score,
+            })
+
+    return targets
 
 
 def delivery_exists(client, notice_db_id: int, user_id: str, channel: str) -> bool:
@@ -377,8 +524,21 @@ def process_notices_for_notifications(
         logger.info("%s: 알림 대상 users 없음", source)
         return 0
 
-    targets = get_notification_targets(notices, users=users)
-    logger.info("%s: 공지 %d건, 유저 %d명, 매칭 대상 %d건", source, len(notices), len(users), len(targets))
+    max_notice_score = load_max_notice_score(client)
+    targets = build_notification_targets(
+        notices,
+        users=users,
+        max_notice_score=max_notice_score,
+        threshold=args.score_threshold,
+    )
+    logger.info(
+        "%s: 공지 %d건, 유저 %d명, 추천 점수 %.2f 이상 대상 %d건",
+        source,
+        len(notices),
+        len(users),
+        args.score_threshold,
+        len(targets),
+    )
 
     sent = 0
     for target in targets:
@@ -399,7 +559,14 @@ def process_notices_for_notifications(
             route = send_imessage(phone, message)
             record_delivery(client, target, args.channel, "sent")
             sent += 1
-            logger.info("발송 완료: notice=%s user=%s phone=%s route=%s", notice_db_id, user_id, phone, route)
+            logger.info(
+                "발송 완료: notice=%s user=%s phone=%s route=%s final_score=%.3f",
+                notice_db_id,
+                user_id,
+                phone,
+                route,
+                target.get("final_score", 0.0),
+            )
         except Exception as exc:
             record_delivery(client, target, args.channel, "failed", str(exc)[:1000])
             logger.exception("발송 실패: notice=%s user=%s phone=%s", notice_db_id, user_id, phone)
@@ -508,6 +675,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=100, help="한 번에 조회할 최대 공지 수")
     parser.add_argument("--send-delay", type=float, default=0.5, help="발송 사이 대기 시간(초)")
     parser.add_argument("--channel", default="imessage", help="notification_deliveries 채널명")
+    parser.add_argument("--score-threshold", type=float, default=0.5, help="알림 발송 Two-Tower 최종점수 기준")
     parser.add_argument("--dry-run", action="store_true", help="실제 발송/이력 저장 없이 대상만 로그 출력")
     parser.add_argument("--polling-only", action="store_true", help="Realtime 없이 polling 보정만 실행")
     args = parser.parse_args()
