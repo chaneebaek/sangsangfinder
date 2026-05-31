@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Send iMessage notifications for newly crawled Supabase notices."""
+"""Send iMessage notifications for new or updated Supabase notices."""
 
 from __future__ import annotations
 
@@ -96,22 +96,23 @@ def load_recent_notices(client, lookback_minutes: int, limit: int) -> list[dict[
                 cur.execute(
                     """
                     select id, notice_id, title, url, posted_at, category,
-                           category_type, job_types, body, notice_score, embedding, crawled_at
+                           category_type, job_types, body, notice_score, embedding, crawled_at, updated_at
                     from public.notices
                     where crawled_at >= %s
-                    order by crawled_at desc
+                       or updated_at >= %s
+                    order by greatest(crawled_at, updated_at) desc
                     limit %s
                     """,
-                    (since, limit),
+                    (since, since, limit),
                 )
                 columns = [desc.name for desc in cur.description]
                 return [dict(zip(columns, row)) for row in cur.fetchall()]
 
     res = (
         client.table("notices")
-        .select("id,notice_id,title,url,posted_at,category,category_type,job_types,body,notice_score,embedding,crawled_at")
-        .gte("crawled_at", since.isoformat())
-        .order("crawled_at", desc=True)
+        .select("id,notice_id,title,url,posted_at,category,category_type,job_types,body,notice_score,embedding,crawled_at,updated_at")
+        .or_(f"crawled_at.gte.{since.isoformat()},updated_at.gte.{since.isoformat()}")
+        .order("updated_at", desc=True)
         .limit(limit)
         .execute()
     )
@@ -596,7 +597,7 @@ async def run_polling_loop(args: argparse.Namespace, lock: asyncio.Lock) -> None
 async def run_realtime_daemon(args: argparse.Namespace) -> None:
     lock = asyncio.Lock()
 
-    logger.info("데몬 시작: Realtime 즉시 발송 + %d초마다 polling 보정", args.interval)
+    logger.info("데몬 시작: Realtime INSERT/UPDATE 즉시 발송 + %d초마다 polling 보정", args.interval)
     async with lock:
         await asyncio.to_thread(run_once, args)
 
@@ -613,15 +614,21 @@ async def run_realtime_daemon(args: argparse.Namespace) -> None:
     while True:
         rt = AsyncRealtimeClient(realtime_url, token=realtime_key, auto_reconnect=True)
         try:
-            channel = rt.channel("sangsangfinder-notice-inserts")
+            channel = rt.channel("sangsangfinder-notice-changes")
 
-            def on_insert(payload: dict[str, Any]) -> None:
+            def on_notice_change(payload: dict[str, Any]) -> None:
                 record = (payload.get("data") or {}).get("record") or payload.get("record")
+                event_type = (
+                    (payload.get("data") or {}).get("type")
+                    or payload.get("eventType")
+                    or payload.get("type")
+                    or "CHANGE"
+                )
                 if not record:
-                    logger.warning("Realtime INSERT payload에 record가 없습니다: %s", payload)
+                    logger.warning("Realtime %s payload에 record가 없습니다: %s", event_type, payload)
                     return
 
-                async def handle_insert() -> None:
+                async def handle_notice_change() -> None:
                     async with lock:
                         client = get_supabase_client()
                         await asyncio.to_thread(
@@ -629,14 +636,14 @@ async def run_realtime_daemon(args: argparse.Namespace) -> None:
                             args,
                             client,
                             [record],
-                            "realtime",
+                            f"realtime {event_type}",
                         )
 
-                asyncio.create_task(handle_insert())
+                asyncio.create_task(handle_notice_change())
 
             def on_subscribe(status, error) -> None:
                 if status == RealtimeSubscribeStates.SUBSCRIBED:
-                    logger.info("Supabase Realtime 구독 시작: public.notices INSERT")
+                    logger.info("Supabase Realtime 구독 시작: public.notices INSERT/UPDATE")
                 elif error:
                     logger.warning("Supabase Realtime 구독 상태=%s error=%s", status, error)
                 else:
@@ -644,7 +651,13 @@ async def run_realtime_daemon(args: argparse.Namespace) -> None:
 
             channel.on_postgres_changes(
                 RealtimePostgresChangesListenEvent.Insert,
-                on_insert,
+                on_notice_change,
+                table="notices",
+                schema="public",
+            )
+            channel.on_postgres_changes(
+                RealtimePostgresChangesListenEvent.Update,
+                on_notice_change,
                 table="notices",
                 schema="public",
             )
