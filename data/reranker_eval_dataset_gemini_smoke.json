@@ -1,0 +1,363 @@
+{
+  "generated_at": "2026-05-28T17:09:33",
+  "source": {
+    "table": "notices",
+    "sampled_notice_count": 2,
+    "loaded_notice_count": 1696
+  },
+  "generation": {
+    "model": "gemini-2.5-flash",
+    "queries_per_notice": 3,
+    "hard_negatives_per_query": 3,
+    "api_key_env": "GEMINI_API_KEY_FREE_TIER"
+  },
+  "labels": {
+    "3": "exact target notice",
+    "1": "hard negative: related/confusable but not the exact target",
+    "0": "hard negative: weakly related lexical/category confounder"
+  },
+  "queries": [
+    {
+      "id": "n001200_q01",
+      "query": "학군단 ROTC 페스티벌",
+      "query_type": "keyword",
+      "intent": "학군단에서 주최하는 ROTC 페스티벌에 대한 정보를 찾는다.",
+      "must_match": [
+        "ROTC Festival",
+        "학군단"
+      ],
+      "positive_notice": {
+        "notice_id": 1200,
+        "source_notice_id": "66186",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+        "title": "한성공지[학군단] ROTC Festival 안내",
+        "category": "ROTC",
+        "posted_at": "2025-03-24",
+        "action": "apply",
+        "family": "상담"
+      },
+      "qrels": [
+        {
+          "notice_id": 1200,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 1192,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66194/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "category": "ROTC",
+          "posted_at": "2025-03-25",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 465,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66972/artclView.do",
+          "title": "한성공지2025년 10월 각 군 현역병 모집계획",
+          "category": "ROTC",
+          "posted_at": "2025-09-22",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year"
+        },
+        {
+          "notice_id": 381,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67062/artclView.do",
+          "title": "한성공지상상력인재학부 자기설계전공 지원 공지(~10/27 월)",
+          "category": "학사행정",
+          "posted_at": "2025-10-16",
+          "relevance": 1,
+          "reason": "same_family, same_year, action_mismatch:apply->download, title_overlap:0.10"
+        }
+      ]
+    },
+    {
+      "id": "n001200_q02",
+      "query": "ROTC 페스티벌 참여하면 비교과 포인트 주나요?",
+      "query_type": "natural",
+      "intent": "ROTC 페스티벌에 참여할 경우 비교과 포인트를 받을 수 있는지 확인하고 싶다.",
+      "must_match": [
+        "ROTC Festival",
+        "비교과 포인트",
+        "참여"
+      ],
+      "positive_notice": {
+        "notice_id": 1200,
+        "source_notice_id": "66186",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+        "title": "한성공지[학군단] ROTC Festival 안내",
+        "category": "ROTC",
+        "posted_at": "2025-03-24",
+        "action": "apply",
+        "family": "상담"
+      },
+      "qrels": [
+        {
+          "notice_id": 1200,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 1192,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66194/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "category": "ROTC",
+          "posted_at": "2025-03-25",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 465,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66972/artclView.do",
+          "title": "한성공지2025년 10월 각 군 현역병 모집계획",
+          "category": "ROTC",
+          "posted_at": "2025-09-22",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year"
+        },
+        {
+          "notice_id": 381,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67062/artclView.do",
+          "title": "한성공지상상력인재학부 자기설계전공 지원 공지(~10/27 월)",
+          "category": "학사행정",
+          "posted_at": "2025-10-16",
+          "relevance": 1,
+          "reason": "same_family, same_year, action_mismatch:apply->download, title_overlap:0.10"
+        }
+      ]
+    },
+    {
+      "id": "n001200_q03",
+      "query": "3월 25일 ROTC 행사",
+      "query_type": "schedule",
+      "intent": "3월 25일에 열리는 ROTC 관련 행사에 대한 정보를 찾는다.",
+      "must_match": [
+        "25.3.25.",
+        "ROTC",
+        "행사"
+      ],
+      "positive_notice": {
+        "notice_id": 1200,
+        "source_notice_id": "66186",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+        "title": "한성공지[학군단] ROTC Festival 안내",
+        "category": "ROTC",
+        "posted_at": "2025-03-24",
+        "action": "apply",
+        "family": "상담"
+      },
+      "qrels": [
+        {
+          "notice_id": 1200,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66186/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 1192,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66194/artclView.do",
+          "title": "한성공지[학군단] ROTC Festival 안내",
+          "category": "ROTC",
+          "posted_at": "2025-03-25",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 465,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66972/artclView.do",
+          "title": "한성공지2025년 10월 각 군 현역병 모집계획",
+          "category": "ROTC",
+          "posted_at": "2025-09-22",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year"
+        },
+        {
+          "notice_id": 381,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67062/artclView.do",
+          "title": "한성공지상상력인재학부 자기설계전공 지원 공지(~10/27 월)",
+          "category": "학사행정",
+          "posted_at": "2025-10-16",
+          "relevance": 1,
+          "reason": "same_family, same_year, action_mismatch:apply->download, title_overlap:0.10"
+        }
+      ]
+    },
+    {
+      "id": "n000457_q01",
+      "query": "ROTC 25년 후반기 66기 모집",
+      "query_type": "abbreviation",
+      "intent": "2025년 후반기 ROTC 66기 모집 공고를 찾고 싶습니다.",
+      "must_match": [
+        "ROTC",
+        "25년",
+        "후반기",
+        "66기",
+        "모집"
+      ],
+      "positive_notice": {
+        "notice_id": 457,
+        "source_notice_id": "66977",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+        "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+        "category": "ROTC",
+        "posted_at": "2025-09-23",
+        "action": "apply",
+        "family": "장학금"
+      },
+      "qrels": [
+        {
+          "notice_id": 457,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 399,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67043/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-14",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 404,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67038/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-13",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 417,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67025/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-02",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        }
+      ]
+    },
+    {
+      "id": "n000457_q02",
+      "query": "ROTC 장학금 혜택 뭐뭐 있나요",
+      "query_type": "natural",
+      "intent": "ROTC 지원 시 받을 수 있는 장학금 및 경제적 혜택 정보를 알고 싶습니다.",
+      "must_match": [
+        "ROTC",
+        "장학금",
+        "혜택"
+      ],
+      "positive_notice": {
+        "notice_id": 457,
+        "source_notice_id": "66977",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+        "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+        "category": "ROTC",
+        "posted_at": "2025-09-23",
+        "action": "apply",
+        "family": "장학금"
+      },
+      "qrels": [
+        {
+          "notice_id": 457,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 399,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67043/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-14",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 404,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67038/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-13",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 417,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67025/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-02",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        }
+      ]
+    },
+    {
+      "id": "n000457_q03",
+      "query": "학군단 단기복무장려금 얼마 주나요",
+      "query_type": "condition",
+      "intent": "학군단 단기복무장려금의 정확한 금액 정보를 확인하고 싶습니다.",
+      "must_match": [
+        "학군단",
+        "단기복무장려금"
+      ],
+      "positive_notice": {
+        "notice_id": 457,
+        "source_notice_id": "66977",
+        "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+        "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+        "category": "ROTC",
+        "posted_at": "2025-09-23",
+        "action": "apply",
+        "family": "장학금"
+      },
+      "qrels": [
+        {
+          "notice_id": 457,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/66977/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "relevance": 3,
+          "reason": "target_notice"
+        },
+        {
+          "notice_id": 399,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67043/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-14",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 404,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67038/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-13",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        },
+        {
+          "notice_id": 417,
+          "url": "https://www.hansung.ac.kr/bbs/hansung/2127/67025/artclView.do",
+          "title": "한성공지'25년 학군사관(ROTC) 후반기 66·67기 모집 안내",
+          "category": "ROTC",
+          "posted_at": "2025-10-02",
+          "relevance": 1,
+          "reason": "same_family, same_category, same_year, title_overlap:1.00"
+        }
+      ]
+    }
+  ]
+}
