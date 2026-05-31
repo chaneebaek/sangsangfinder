@@ -249,12 +249,9 @@ def process_notices(notices: list[dict], batch_size: int = 10) -> int:
 if __name__ == "__main__":
     res = supabase.table("notices").select(
         "id,notice_id,title,url,posted_at,body,views,category,category_type,embedding"
-    ).order("posted_at", desc=True).limit(50).execute()
+    ).eq("category_type", "[]").execute()
 
-    unprocessed = [
-        n for n in (res.data or [])
-        if not n.get('category_type') or not n.get('embedding')
-    ]
+    unprocessed = res.data or []
 
     if unprocessed:
         print(f"미처리 공지 {len(unprocessed)}건 발견")
