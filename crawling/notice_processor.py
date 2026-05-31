@@ -247,13 +247,17 @@ def process_notices(notices: list[dict], batch_size: int = 10) -> int:
 
 # ── 단독 실행 (테스트용) ──────────────────────────────────────
 if __name__ == "__main__":
-    # category_type이 없는 신규 공지만 처리
     res = supabase.table("notices").select(
-        "id,notice_id,title,url,posted_at,body,views,category"
-    ).is_("category_type", "null").order("posted_at", desc=True).limit(20).execute()
+        "id,notice_id,title,url,posted_at,body,views,category,category_type,embedding"
+    ).order("posted_at", desc=True).limit(50).execute()
 
-    if res.data:
-        print(f"미처리 공지 {len(res.data)}건 발견")
-        process_notices(res.data)
+    unprocessed = [
+        n for n in (res.data or [])
+        if not n.get('category_type') or not n.get('embedding')
+    ]
+
+    if unprocessed:
+        print(f"미처리 공지 {len(unprocessed)}건 발견")
+        process_notices(unprocessed)
     else:
-        print("미처리 공지 없음 — 모든 공지가 처리됨")
+        print("미처리 공지 없음")
