@@ -32,6 +32,16 @@ gemini = genai.GenerativeModel(
     generation_config={"response_mime_type": "application/json"}
 )
 
+def clean_for_postgres(value):
+    """Postgres text/jsonb values cannot contain literal NUL bytes."""
+    if isinstance(value, str):
+        return value.replace("\x00", "")
+    if isinstance(value, list):
+        return [clean_for_postgres(item) for item in value]
+    if isinstance(value, dict):
+        return {key: clean_for_postgres(item) for key, item in value.items()}
+    return value
+
 # ── 카테고리 정의 ─────────────────────────────────────────────
 VALID_CATEGORIES = [
     "취업/채용", "학사행정", "학생활동/비교과",
@@ -306,6 +316,7 @@ def process_notices(notices: list[dict]) -> int:
 
     for i, notice in enumerate(notices):
         try:
+            notice = clean_for_postgres(dict(notice))
             title     = notice.get('title', '')
             body      = notice.get('body', '') or ''
             url       = notice.get('url', '')
@@ -316,7 +327,7 @@ def process_notices(notices: list[dict]) -> int:
             # 1. Gemini 분류
             classification = classify_with_gemini(title, body)
             category       = classification.get('category', '기타')
-            category_type  = classification.get('category_type', [])
+            category_type  = clean_for_postgres(classification.get('category_type', []))
             notice['category'] = category
 
             # 2. notice_score 계산
@@ -330,7 +341,7 @@ def process_notices(notices: list[dict]) -> int:
             notice_id       = notice_id_match.group(1) if notice_id_match else notice.get('notice_id')
 
             # 5. Supabase notices 업데이트
-            supabase.table("notices").upsert({
+            payload = clean_for_postgres({
                 "source":           "hansung",
                 "notice_id":        notice_id,
                 "title":            title,
@@ -345,7 +356,8 @@ def process_notices(notices: list[dict]) -> int:
                 "notice_score":     notice_score,
                 "embedding":        json.dumps(embedding),
                 "raw":              notice,
-            }, on_conflict="url").execute()
+            })
+            supabase.table("notices").upsert(payload, on_conflict="url").execute()
 
             print(f"  → {category} {category_type} | score:{notice_score}")
 
