@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 194,
+  "revision": 196,
   "index_config": {
     "signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
     "embedding_model": "jhgan/ko-sroberta-multitask",
@@ -18952,6 +18952,35 @@
         "82c5098babc6decfe3e0087d392a1c41_34",
         "82c5098babc6decfe3e0087d392a1c41_35",
         "82c5098babc6decfe3e0087d392a1c41_36"
+      ]
+    },
+    "8357e44e6bfcb21f7d42125d64b19ffa": {
+      "content_hash": "47e99c93c8aa2f61deb60c660c7e965c8eb483879dc4779cd60f9ee71a98ea15",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "8357e44e6bfcb21f7d42125d64b19ffa_0",
+        "8357e44e6bfcb21f7d42125d64b19ffa_1",
+        "8357e44e6bfcb21f7d42125d64b19ffa_2",
+        "8357e44e6bfcb21f7d42125d64b19ffa_3",
+        "8357e44e6bfcb21f7d42125d64b19ffa_4",
+        "8357e44e6bfcb21f7d42125d64b19ffa_5",
+        "8357e44e6bfcb21f7d42125d64b19ffa_6",
+        "8357e44e6bfcb21f7d42125d64b19ffa_7",
+        "8357e44e6bfcb21f7d42125d64b19ffa_8"
+      ]
+    },
+    "31427bf7f5f75b25f8272ac47c25afc2": {
+      "content_hash": "0cc9083e0f65307add90635b9dc4e6a335a633f9020222fe48dbd6804999f1e8",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "31427bf7f5f75b25f8272ac47c25afc2_0",
+        "31427bf7f5f75b25f8272ac47c25afc2_1",
+        "31427bf7f5f75b25f8272ac47c25afc2_2",
+        "31427bf7f5f75b25f8272ac47c25afc2_3",
+        "31427bf7f5f75b25f8272ac47c25afc2_4",
+        "31427bf7f5f75b25f8272ac47c25afc2_5",
+        "31427bf7f5f75b25f8272ac47c25afc2_6",
+        "31427bf7f5f75b25f8272ac47c25afc2_7"
       ]
     }
   }
