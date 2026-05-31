@@ -44,6 +44,11 @@ _PDF_TEXT_SPARSE_CHARS = 40
 # 내부 유틸
 # ============================================================
 
+def _clean_storage_text(text: str) -> str:
+    """Postgres text/jsonb values cannot contain literal NUL bytes."""
+    return text.replace("\x00", "")
+
+
 def _is_text_image(src: str) -> bool:
     """OCR 시도할 가치가 있는 이미지인지 판단."""
     path = src.split("?")[0]
@@ -311,7 +316,7 @@ def get_post_content(url: str) -> str:
                 if pdf_text:
                     parts.append(f"[첨부PDF] {pdf_text}")
 
-        return " ".join(parts)
+        return _clean_storage_text(" ".join(parts))
 
     except Exception as e:
         print(f"  ⚠️ 본문 크롤링 실패: {e}")
