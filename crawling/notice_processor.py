@@ -106,6 +106,15 @@ def classify_with_gemini(title: str, body: str, max_retry: int = 3) -> dict:
 
 # ── 장학금 파싱 ───────────────────────────────────────────────
 def parse_scholarship(title: str, body: str, max_retry: int = 3) -> dict:
+
+    SEOUL_GU = ["종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구","도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구","영등포구","동작구","관악구","서초구","강남구","송파구","강동구"]
+    GYEONGGI_SI = ["수원시","용인시","고양시","화성시","성남시","부천시","남양주시","안산시","평택시","안양시","시흥시","파주시","김포시","의정부시","광주시","하남시","양주시","광명시","군포시","오산시","이천시","안성시","구리시","포천시","의왕시","양평군","여주시","동두천시","과천시","가평군","연천군"]
+    OTHER_REGIONS = ["부산광역시","대구광역시","인천광역시","광주광역시","대전광역시","울산광역시","세종특별자치시","강원특별자치도","충청북도","충청남도","전북특별자치도","전라남도","경상북도","경상남도","제주특별자치도"]
+
+    seoul_list  = ", ".join([f'"서울특별시 {g}"' for g in SEOUL_GU])
+    gyeonggi_list = ", ".join([f'"경기도 {s}"' for s in GYEONGGI_SI])
+    other_list  = ", ".join([f'"{r}"' for r in OTHER_REGIONS])
+
     prompt = f"""
 아래 한성대학교 장학금 공지를 분석해서 JSON으로 반환해.
 
@@ -123,9 +132,18 @@ def parse_scholarship(title: str, body: str, max_retry: int = 3) -> dict:
   "target_status": ["재학"] 또는 ["재학", "휴학"] 등,
   "target_grade": [1, 2, 3, 4] 또는 특정 학년만,
   "min_gpa": null 또는 숫자,
-  "region": null 또는 지역명,
+  "region": 지역 조건 없으면 null, 있으면 아래 목록 중 정확히 하나만 선택:
+    서울 전체: "서울특별시"
+    서울 특정 구: {seoul_list}
+    경기 전체: "경기도"
+    경기 특정 시군: {gyeonggi_list}
+    기타 광역시도: {other_list},
   "extra_info": "기타 중요 정보 한 줄 요약"
 }}
+
+region 규칙:
+- 지역 조건이 없으면 반드시 null
+- 있으면 반드시 위 목록 중 하나만 선택 (임의 형식 사용 금지)
 """
     for attempt in range(max_retry):
         try:
