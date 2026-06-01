@@ -72,25 +72,50 @@ def generate_llm_reply(user_query, results, profile, is_first=False):
         print(f"[LLM 오류] {e}")
         return f"총 {len(results)}개의 관련 공지를 찾았습니다." if results else "관련 공지를 찾지 못했습니다."
 
+def _region_match(user_region: str, db_region: str) -> bool:
+    """사용자 입력 지역(통일 형식)과 DB 지역값 매칭"""
+    if not db_region:
+        return True  # DB에 지역 조건 없으면 누구나 해당
+    if not user_region:
+        return False  # 사용자 지역 미입력 시 지역 조건 있는 장학금 제외
+
+    u = user_region.strip()
+    d = db_region.strip()
+
+    if u == d:
+        return True  # 완전 일치
+
+    # 사용자가 '서울특별시 강남구' → DB가 '서울특별시'(서울 전체)면 해당
+    # 사용자가 '경기도 수원시' → DB가 '경기도'(경기 전체)면 해당
+    u_parts = u.split()
+    if len(u_parts) >= 2 and d == u_parts[0]:
+        return True
+
+    return False
+
 def filter_scholarships(profile):
     try:
-        today = datetime.now().strftime('%Y-%m-%d')
+        today        = datetime.now().strftime('%Y-%m-%d')
         income_level = profile.get('income_level')
-        gpa = profile.get('gpa')
-        region = profile.get('region')
-        loan = profile.get('loan')
-        grade = profile.get('grade', '')
+        gpa          = profile.get('gpa')
+        region       = profile.get('region')
+        loan         = profile.get('loan')
+        grade        = profile.get('grade', '')
+
         grade_num = None
         try: grade_num = int(grade.replace('학년','').strip())
         except: pass
+
         income_num = None
         if income_level and income_level != "모름/해당없음":
             try: income_num = int(income_level.replace("분위",""))
             except: pass
+
         gpa_num = None
         if gpa and gpa not in ("모름/해당없음", "", None):
-            try: gpa_num = float(str(gpa).split(" ")[0])
+            try: gpa_num = float(str(gpa))
             except: pass
+
         res = get_supabase().table("scholarships").select("*").eq("is_application", True).execute()
         filtered = []
         for s in (res.data or []):
@@ -102,6 +127,7 @@ def filter_scholarships(profile):
             if isinstance(target_status, str):
                 try: target_status = json.loads(target_status)
                 except: target_status = []
+
             if s.get('end_date_type') == '명시' and s.get('end_date'):
                 if s['end_date'] < today: continue
             if grade_num and target_grade:
@@ -111,13 +137,14 @@ def filter_scholarships(profile):
                 if income_num > s['income_max']: continue
             if gpa_num is not None and s.get('min_gpa') is not None:
                 if gpa_num < s['min_gpa']: continue
-            if s.get('region') is not None and region not in [None, "모름/해당없음"]:
-                if s['region'] != region: continue
+            if s.get('region') is not None:
+                if not _region_match(region, s['region']): continue
             if s.get('income_required') and loan != "관심있음": continue
             filtered.append(s)
+
         application_notices = []
         if filtered:
-            notice_ids = [s['notice_id'] for s in filtered]
+            notice_ids  = [s['notice_id'] for s in filtered]
             notices_res = get_supabase().table("notices").select(
                 "id,notice_id,title,url,posted_at,body,category"
             ).in_("notice_id", notice_ids).execute()
@@ -127,14 +154,16 @@ def filter_scholarships(profile):
                 if notice:
                     notice['scholarship_info'] = s
                     application_notices.append(notice)
+
         rel_res = get_supabase().table("scholarships").select("notice_id").eq("is_application", False).execute()
         related_notices = []
         if rel_res.data:
-            rel_ids = [r['notice_id'] for r in rel_res.data]
+            rel_ids     = [r['notice_id'] for r in rel_res.data]
             rel_notices = get_supabase().table("notices").select(
                 "id,notice_id,title,url,posted_at,body,category"
             ).in_("notice_id", rel_ids).order("posted_at", desc=True).limit(3).execute()
             related_notices = rel_notices.data or []
+
         return application_notices, related_notices
     except Exception as e:
         print(f"장학금 필터링 오류: {e}")
