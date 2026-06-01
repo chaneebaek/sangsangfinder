@@ -315,3 +315,15 @@ async def recommend(req: RecommendRequest):
             })
 
     return {"notices": combined[:15]}
+
+
+# ── 프로필 동기화 API ─────────────────────────────────────────
+@app.post("/api/sync-profile")
+async def sync_profile_endpoint(req: RecommendRequest):
+    try:
+        sync_profile_to_supabase_user(req.profile.dict())
+        print(f"[sync-profile] {req.profile.name} 저장 완료")
+        return {"status": "ok"}
+    except Exception as e:
+        print(f"[sync-profile 오류] {e}")
+        return {"status": "error", "message": str(e)}
