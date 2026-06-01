@@ -123,6 +123,7 @@ def parse_scholarship(title: str, body: str, max_retry: int = 3) -> dict:
 
 아래 JSON 형식으로만 출력해:
 {{
+  "is_application": true 또는 false,
   "type": "교내장학금 또는 국가장학금 또는 교외장학금 또는 근로장학금 중 하나",
   "income_max": null 또는 숫자 (소득분위 제한 있으면 숫자, 없으면 null),
   "income_required": true 또는 false,
@@ -140,6 +141,10 @@ def parse_scholarship(title: str, body: str, max_retry: int = 3) -> dict:
     기타 광역시도: {other_list},
   "extra_info": "기타 중요 정보 한 줄 요약"
 }}
+
+is_application 판단 기준:
+- true: 실제 장학금 신청을 받는 공고 (신청기간, 신청방법, 지원자격 등이 명시된 경우)
+- false: 장학금 관련 안내공지 (수혜자 발표, 지급 안내, 제도 소개 등)
 
 region 규칙:
 - 지역 조건이 없으면 반드시 null
@@ -259,9 +264,10 @@ def save_scholarship(notice_id: str, title: str, body: str, posted_at: str):
             "min_gpa":             result.get('min_gpa'),
             "region":              result.get('region'),
             "extra_info":          result.get('extra_info'),
-            "is_application":      False,  # 관리자가 확인 후 True로 변경
+            "is_application":      result.get('is_application', False),
         }).execute()
-        print(f"  → 장학금 저장 완료 (is_application=False, 관리자 확인 필요)")
+        is_app = result.get('is_application', False)
+        print(f"  → 장학금 저장 완료 (is_application={is_app})")
     except Exception as e:
         print(f"  → 장학금 저장 실패: {e}")
 
