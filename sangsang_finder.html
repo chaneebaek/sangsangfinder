@@ -33,7 +33,20 @@
   --tr:        0.15s ease;
 }
 
-html, body { height:100%; background:var(--bg); font-family:var(--font); color:var(--text); -webkit-font-smoothing:antialiased; }
+html, body {
+  height:100%;
+  background:
+    radial-gradient(ellipse 900px 600px at 90% 0%, rgba(49,130,246,0.13) 0%, transparent 55%),
+    radial-gradient(ellipse 700px 500px at 0% 100%, rgba(49,130,246,0.10) 0%, transparent 55%),
+    #f4f7ff;
+  font-family:var(--font); color:var(--text); -webkit-font-smoothing:antialiased;
+}
+:root { --bg: #f4f7ff; }
+
+/* ── 페이지 전환 페이드 ──────────────────────────────────────── */
+.page { display:none; opacity:0; transition:opacity 0.4s ease; }
+.page.active { display:flex; }
+.page.visible { opacity:1; }
 
 ::-webkit-scrollbar { width:4px; }
 ::-webkit-scrollbar-track { background:transparent; }
@@ -45,7 +58,7 @@ html, body { height:100%; background:var(--bg); font-family:var(--font); color:v
 /* ── 온보딩 ─────────────────────────────────────────────── */
 #page-onboarding {
   min-height:100vh; align-items:center; justify-content:center; padding:40px 16px;
-  background: radial-gradient(ellipse 800px 500px at 60% 0%, rgba(49,130,246,0.06) 0%, transparent 70%), var(--bg);
+  background: transparent;
 }
 .ob-wrap { display:flex; gap:48px; width:100%; max-width:880px; align-items:flex-start; }
 .ob-brand { flex:0 0 190px; padding-top:8px; }
@@ -101,7 +114,7 @@ html, body { height:100%; background:var(--bg); font-family:var(--font); color:v
 .ob-error { background:var(--blue-dim); color:var(--blue); border:1px solid var(--blue-mid); border-radius:var(--rad-xs); padding:10px 14px; font-size:13px; font-weight:500; margin-top:10px; display:none; }
 
 /* ── 메인 레이아웃 ───────────────────────────────────────── */
-#page-main { min-height:100vh; flex-direction:row; }
+#page-main { min-height:100vh; flex-direction:row; background:transparent; }
 
 .sidebar {
   width:var(--sidebar-w); min-width:var(--sidebar-w);
@@ -714,7 +727,10 @@ let selectedDorms = [];
    초기화
    ============================================================ */
 window.addEventListener('DOMContentLoaded', () => {
-  // 저장된 프로필 복원
+  // 온보딩 초기 페이드인
+  const ob = document.getElementById('page-onboarding');
+  requestAnimationFrame(() => requestAnimationFrame(() => ob.classList.add('visible')));
+
   try {
     const saved = localStorage.getItem('sf_profile');
     if (saved) { profile = JSON.parse(saved); showMainPage(); return; }
@@ -1015,8 +1031,22 @@ function submitAll() {
    메인 페이지 렌더링
    ============================================================ */
 function showMainPage() {
-  document.getElementById('page-onboarding').classList.remove('active');
-  document.getElementById('page-main').classList.add('active');
+  const onboarding = document.getElementById('page-onboarding');
+  const main = document.getElementById('page-main');
+
+  // 온보딩 페이드아웃
+  onboarding.style.transition = 'opacity 0.35s ease';
+  onboarding.style.opacity = '0';
+
+  setTimeout(() => {
+    onboarding.classList.remove('active');
+    onboarding.style.opacity = '';
+    main.classList.add('active');
+    // 메인 페이드인
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => main.classList.add('visible'));
+    });
+  }, 350);
 
   // 사이드바 내 정보 (초기화 후 렌더)
   const info = document.getElementById('sb-info');
