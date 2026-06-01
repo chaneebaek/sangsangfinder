@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>상상파인더</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=Gmarket+Sans:wght@300;500;700&display=swap" rel="stylesheet"/>
+<style>
+*, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+:root {
+  --blue:      #3182f6;
+  --blue-h:    #1b64da;
+  --blue-dim:  rgba(49,130,246,0.08);
+  --blue-mid:  rgba(49,130,246,0.2);
+  --bg:        #f9fafb;
+  --surface:   #ffffff;
+  --text:      #191f28;
+  --text-sub:  #6b7684;
+  --text-hint: #b0b8c1;
+  --border:    #e5e8eb;
+  --border-focus: #3182f6;
+  --shadow-xs: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.06), 0 0 1px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.08), 0 0 1px rgba(0,0,0,0.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,0.10), 0 0 1px rgba(0,0,0,0.04);
+  --radius:    16px;
+  --rad-sm:    10px;
+  --rad-xs:    8px;
+  --font:      'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-g:    'Gmarket Sans', 'Noto Sans KR', sans-serif;
+  --sidebar-w: 270px;
+  --tr:        0.15s ease;
+}
+
+html, body { height:100%; background:var(--bg); font-family:var(--font); color:var(--text); -webkit-font-smoothing:antialiased; }
+
+::-webkit-scrollbar { width:4px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.1); border-radius:99px; }
+
+.page { display:none; }
+.page.active { display:flex; }
+
+/* ── 온보딩 ─────────────────────────────────────────────── */
+#page-onboarding {
+  min-height:100vh; align-items:center; justify-content:center; padding:40px 16px;
+  background: radial-gradient(ellipse 800px 500px at 60% 0%, rgba(49,130,246,0.06) 0%, transparent 70%), var(--bg);
+}
+.ob-wrap { display:flex; gap:48px; width:100%; max-width:880px; align-items:flex-start; }
+.ob-brand { flex:0 0 190px; padding-top:8px; }
+.ob-logo-row { display:flex; align-items:center; gap:10px; margin-bottom:16px; }
+.ob-logo-icon { width:46px; height:46px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ob-brand-name { font-family:var(--font-g); font-size:20px; font-weight:700; letter-spacing:-0.04em; color:var(--text); }
+.ob-brand-sub { font-size:14px; color:var(--text-sub); line-height:1.7; margin-top:6px; }
+
+.ob-form-card {
+  flex:1; background:var(--surface); border-radius:20px;
+  padding:36px; box-shadow:var(--shadow-lg); border:1px solid var(--border);
+}
+.ob-form-title { font-size:18px; font-weight:700; color:var(--text); margin-bottom:4px; }
+.ob-form-sub   { font-size:13px; color:var(--text-sub); margin-bottom:24px; }
+
+.field { margin-bottom:14px; }
+.field label { display:block; font-size:12px; font-weight:600; color:var(--text-sub); margin-bottom:6px; }
+.field input, .field select {
+  width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
+  font-size:14px; font-family:var(--font); color:var(--text); background:var(--surface);
+  transition:border-color var(--tr), box-shadow var(--tr); outline:none; appearance:none;
+}
+.field input::placeholder { color:var(--text-hint); }
+.field input:focus, .field select:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim); }
+
+.row2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+.multi-chips { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.chip {
+  padding:6px 14px; border-radius:99px; font-size:12px; font-weight:600;
+  border:1.5px solid var(--border); background:var(--surface); color:var(--text-sub);
+  cursor:pointer; transition:all var(--tr); user-select:none;
+}
+.chip:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-dim); }
+.chip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+
+.ob-divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+.ob-section-title { font-size:12px; font-weight:700; color:var(--blue); margin-bottom:12px; display:flex; align-items:center; gap:6px; }
+
+.phone-row { display:flex; align-items:center; gap:6px; }
+.phone-row span { font-size:16px; color:var(--text-hint); }
+.phone-row input { flex:1; }
+
+.btn-primary {
+  width:100%; padding:15px; margin-top:22px;
+  background:var(--blue); color:#fff; border:none; border-radius:var(--rad-sm);
+  font-size:15px; font-weight:700; font-family:var(--font-g); cursor:pointer;
+  letter-spacing:-0.01em; transition:all var(--tr);
+}
+.btn-primary:hover { background:var(--blue-h); transform:translateY(-1px); box-shadow:0 6px 20px rgba(49,130,246,0.35); }
+.btn-primary:active { transform:translateY(0); box-shadow:none; }
+
+.ob-error { background:var(--blue-dim); color:var(--blue); border:1px solid var(--blue-mid); border-radius:var(--rad-xs); padding:10px 14px; font-size:13px; font-weight:500; margin-top:10px; display:none; }
+
+/* ── 메인 레이아웃 ───────────────────────────────────────── */
+#page-main { min-height:100vh; flex-direction:row; }
+
+.sidebar {
+  width:var(--sidebar-w); min-width:var(--sidebar-w);
+  background:var(--surface); border-right:1px solid var(--border);
+  display:flex; flex-direction:column;
+  padding:48px 20px 32px;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+  justify-content:space-between;
+}
+.sb-logo-row {
+  display:flex; align-items:center; gap:10px;
+  padding-bottom:18px; border-bottom:1px solid var(--border); margin-bottom:18px;
+}
+.sb-logo-icon { width:34px; height:34px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.sb-logo-name { font-family:var(--font-g); font-size:14px; font-weight:700; color:var(--text); letter-spacing:-0.02em; }
+.sb-logo-en   { font-size:10px; color:var(--text-hint); margin-top:2px; }
+
+.sb-section { font-size:11px; font-weight:600; color:var(--text-hint); letter-spacing:0.04em; margin:24px 0 10px; }
+.sb-info-row { display:flex; gap:8px; align-items:flex-start; padding:6px 0; }
+.sb-info-key { font-size:12px; color:var(--text-hint); min-width:54px; flex-shrink:0; }
+.sb-info-val { font-size:13px; font-weight:500; color:var(--text); line-height:1.4; }
+
+.sb-divider { border:none; border-top:1px solid var(--border); margin:22px 0; }
+
+.sb-link {
+  display:flex; align-items:center; gap:8px; padding:10px 2px; border-radius:var(--rad-xs);
+  text-decoration:none; color:var(--text-sub); font-size:13px; font-weight:500;
+  margin-bottom:1px; transition:all var(--tr);
+}
+.sb-link:hover { background:var(--blue-dim); color:var(--blue); }
+.sb-link .icon { font-size:15px; }
+.sb-link img { flex-shrink:0; }
+.sb-link .arrow { margin-left:auto; font-size:11px; color:var(--text-hint); }
+
+.sb-reset-btn {
+  width:100%; padding:11px; background:var(--bg); border:1.5px solid var(--border);
+  border-radius:var(--rad-xs); font-size:13px; font-weight:600; color:var(--text-sub);
+  cursor:pointer; transition:all var(--tr); font-family:var(--font);
+}
+.sb-reset-btn:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-dim); }
+.sb-top { flex:1; }
+.sb-bottom { flex-shrink:0; }
+
+.main-content-wrap { flex:1; display:flex; justify-content:center; overflow-y:auto; background:var(--bg); }
+.main-content { width:100%; padding:80px 36px 48px; max-width:820px; }
+
+/* ── 탭 ─────────────────────────────────────────────────── */
+.tabs-wrap { display:flex; justify-content:center; margin-bottom:28px; }
+.tabs {
+  display:inline-flex; background:var(--border); border-radius:12px; padding:3px; gap:2px;
+}
+.tab-btn {
+  padding:9px 24px; border-radius:10px; border:none; font-size:14px; font-weight:500;
+  color:var(--text-sub); background:transparent; cursor:pointer; transition:all var(--tr); font-family:var(--font);
+}
+.tab-btn.active { background:var(--surface); color:var(--text); font-weight:700; box-shadow:var(--shadow-sm); }
+
+.tab-panel { display:none; }
+.tab-panel.active { display:block; }
+
+/* ── 챗봇 ────────────────────────────────────────────────── */
+.chat-shell {
+  background:var(--surface); border-radius:var(--radius); border:1px solid var(--border);
+  box-shadow:var(--shadow-sm); overflow:hidden; margin-bottom:12px;
+}
+.mac-bar {
+  display:flex; align-items:center; gap:6px; padding:12px 16px;
+  background:#f4f6f8; border-bottom:1px solid var(--border);
+}
+.mac-dot { width:11px; height:11px; border-radius:50%; }
+.mac-dot-r { background:#ff5f57; } .mac-dot-y { background:#febc2e; } .mac-dot-g { background:#28c840; }
+
+.chat-body { padding:24px; min-height:320px; max-height:480px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; }
+
+.chat-welcome { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:32px 0; text-align:center; }
+.chat-welcome .welcome-icon { margin-bottom:16px; }
+.chat-welcome .welcome-title { font-size:17px; font-weight:700; color:var(--text); margin-bottom:8px; }
+.chat-welcome .welcome-hints { font-size:13px; line-height:1.8; color:var(--text-sub); }
+.chat-welcome .hint-pill {
+  display:inline-block; background:var(--blue-dim); color:var(--blue); border-radius:99px;
+  padding:5px 13px; font-size:12px; font-weight:600; margin:3px; cursor:pointer;
+  transition:all var(--tr); border:1px solid transparent;
+}
+.chat-welcome .hint-pill:hover { background:rgba(49,130,246,0.15); border-color:var(--blue-mid); }
+
+.bubble-user {
+  background:var(--blue); color:#fff; border-radius:18px 18px 4px 18px;
+  padding:11px 16px; max-width:58%; width:fit-content; margin-left:auto;
+  font-size:14px; line-height:1.5; word-break:break-word;
+  animation:fadeUp 0.18s ease;
+}
+.bubble-bot {
+  background:var(--bg); color:var(--text); border-radius:18px 18px 18px 4px;
+  padding:12px 16px; max-width:78%; width:fit-content;
+  font-size:14px; line-height:1.55; border:1px solid var(--border);
+  word-break:break-word; animation:fadeUp 0.18s ease;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+.ref-card {
+  background:var(--bg); border:1px solid var(--border); border-radius:12px;
+  padding:12px 16px; margin-top:6px; max-width:78%;
+  animation:fadeUp 0.18s ease;
+}
+.ref-card-meta { display:flex; align-items:center; gap:6px; margin-bottom:5px; flex-wrap:wrap; }
+.ref-label { font-size:11px; color:var(--text-hint); font-weight:500; }
+.ref-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:5px; }
+.ref-link { font-size:12px; color:var(--blue); text-decoration:none; font-weight:600; }
+.ref-link:hover { text-decoration:underline; }
+
+.chat-input-row {
+  display:flex; gap:8px; align-items:stretch; padding:14px 16px;
+  background:var(--surface); border-radius:var(--radius);
+  border:1px solid var(--border); box-shadow:var(--shadow-sm);
+}
+.chat-cat-select {
+  padding:10px 10px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
+  font-size:13px; font-family:var(--font); color:var(--text); background:var(--bg);
+  outline:none; cursor:pointer; transition:border-color var(--tr); appearance:none;
+}
+.chat-cat-select:focus { border-color:var(--blue); }
+.chat-text-input {
+  flex:1; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
+  font-size:14px; font-family:var(--font); color:var(--text); background:var(--surface);
+  outline:none; transition:border-color var(--tr), box-shadow var(--tr);
+}
+.chat-text-input::placeholder { color:var(--text-hint); }
+.chat-text-input:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim); }
+.chat-send-btn {
+  padding:10px 22px; background:var(--blue); color:#fff; border:none; border-radius:var(--rad-xs);
+  font-size:14px; font-weight:700; cursor:pointer; font-family:var(--font);
+  transition:all var(--tr); white-space:nowrap;
+}
+.chat-send-btn:hover { background:var(--blue-h); }
+.chat-send-btn:disabled { opacity:0.4; cursor:not-allowed; }
+
+.chat-reset-btn {
+  display:block; margin-top:10px; padding:8px 16px; background:transparent;
+  border:1.5px solid var(--border); border-radius:var(--rad-xs); font-size:12px;
+  font-weight:600; color:var(--text-hint); cursor:pointer; transition:all var(--tr); font-family:var(--font);
+}
+.chat-reset-btn:hover { border-color:var(--blue); color:var(--blue); }
+
+.typing { display:flex; gap:4px; align-items:center; padding:4px 2px; }
+.typing span { width:6px; height:6px; border-radius:50%; background:var(--blue); animation:bounce 1.2s infinite; }
+.typing span:nth-child(2) { animation-delay:0.2s; }
+.typing span:nth-child(3) { animation-delay:0.4s; }
+@keyframes bounce { 0%,80%,100%{transform:translateY(0);opacity:0.35} 40%{transform:translateY(-5px);opacity:1} }
+
+/* ── 추천 탭 ─────────────────────────────────────────────── */
+.profile-banner {
+  background:var(--surface); border-radius:var(--radius); padding:18px 22px; margin-bottom:20px;
+  display:flex; align-items:center; gap:16px; border:1px solid var(--border); box-shadow:var(--shadow-xs);
+}
+.profile-banner .pname { font-size:14px; font-weight:700; color:var(--text); }
+.profile-banner .ptrack { font-size:13px; color:var(--text-sub); margin-top:2px; }
+
+.rec-btn-wrap { text-align:center; margin-bottom:24px; }
+.rec-btn {
+  padding:14px 40px; background:var(--blue); color:#fff; border:none; border-radius:var(--rad-sm);
+  font-size:15px; font-weight:700; font-family:var(--font-g); cursor:pointer; transition:all var(--tr);
+  letter-spacing:-0.01em;
+}
+.rec-btn:hover { background:var(--blue-h); transform:translateY(-1px); box-shadow:0 6px 20px rgba(49,130,246,0.35); }
+.rec-btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+
+.rec-section-title { font-size:14px; font-weight:700; color:var(--text); margin:24px 0 10px; display:flex; align-items:center; gap:6px; }
+
+.notice-card {
+  background:var(--surface); border-radius:14px; padding:18px 20px; margin-bottom:10px;
+  border:1px solid var(--border); box-shadow:var(--shadow-xs); transition:all var(--tr);
+}
+.notice-card:hover { box-shadow:var(--shadow-md); transform:translateY(-2px); border-color:rgba(49,130,246,0.2); }
+.notice-card-meta { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:7px; }
+.notice-tag {
+  display:inline-block; background:var(--blue-dim); color:var(--blue);
+  border-radius:6px; padding:3px 8px; font-size:11px; font-weight:700;
+}
+.notice-date { font-size:12px; color:var(--text-hint); margin-left:auto; }
+.notice-title { font-size:15px; font-weight:600; color:var(--text); line-height:1.4; margin-bottom:4px; }
+.notice-summary { font-size:13px; color:var(--text-sub); line-height:1.6; margin-top:4px; }
+.notice-footer { display:flex; align-items:center; margin-top:12px; }
+.notice-link { font-size:12px; color:var(--blue); text-decoration:none; font-weight:600; }
+.notice-link:hover { text-decoration:underline; }
+
+.tag { display:inline-block; background:var(--blue-dim); color:var(--blue); border-radius:6px; padding:2px 8px; font-size:11px; font-weight:700; }
+.tag-gray { background:var(--bg); color:var(--text-hint); }
+
+.spinner-wrap { display:flex; align-items:center; gap:10px; color:var(--text-sub); font-size:13px; padding:16px 0; }
+.spinner { width:16px; height:16px; border:2px solid var(--border); border-top-color:var(--blue); border-radius:50%; animation:spin 0.7s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+.empty-state { text-align:center; padding:40px 0; color:var(--text-sub); font-size:14px; }
+
+@media (max-width:700px) {
+  #page-main { flex-direction:column; }
+  .sidebar { width:100%; height:auto; position:relative; padding:16px; border-right:none; border-bottom:1px solid var(--border); }
+  .main-content { padding:20px 16px; }
+}
+
+/* ── 스텝 온보딩 ─────────────────────────────────────────── */
+#page-onboarding {
+  min-height:100vh;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  background:
+    linear-gradient(180deg,
+      rgba(49,130,246,0.13) 0%,
+      rgba(49,130,246,0.06) 30%,
+      rgba(49,130,246,0.01) 60%,
+      var(--bg) 100%);
+  padding:0;
+}
+
+/* 프로그레스 바 */
+.ob-progress-wrap {
+  width:100%; position:sticky; top:0; z-index:10;
+  background:transparent;
+  padding:0 0 3px 0;
+  display:block;
+}
+.ob-progress-bar {
+  display:block; height:3px; width:0%;
+  background:var(--blue);
+  transition:width 0.5s cubic-bezier(.4,0,.2,1);
+}
+.ob-progress-pct { display:none; }
+
+/* 로고 - 사이드바급 좌측 고정 */
+.ob-logo-top {
+  position:fixed;
+  top:32px;
+  left:48px;
+  display:flex; align-items:center; gap:10px;
+  z-index:5;
+}
+.ob-logo-label {
+  font-family:var(--font-g);
+  font-size:22px; font-weight:700;
+  color:var(--text); letter-spacing:-0.04em;
+}
+
+/* 스텝 외부 컨테이너 */
+.ob-step-outer {
+  width:100%; max-width:520px;
+  padding:160px 20px 0;
+  display:flex;
+  flex-direction:column;
+  align-items:stretch;
+}
+
+/* 메시지 영역 */
+.ob-msg-area {
+  min-height:72px;
+  margin-bottom:0;
+}
+
+/* 개별 스텝 */
+.ob-step {
+  opacity:0; transform:translateY(10px);
+  transition:opacity 0.3s ease, transform 0.3s ease;
+}
+.ob-step.visible { opacity:1; transform:translateY(0); }
+
+/* 메시지 버블 */
+.ob-msg {
+  display:flex; align-items:center; gap:12px;
+  padding:4px 0;
+}
+.ob-msg-icon { width:32px; height:32px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.ob-msg-icon img { width:28px; height:28px; object-fit:contain; }
+.ob-msg-text { font-size:16px; line-height:1.6; color:var(--text); font-weight:400; }
+.ob-msg-text strong { font-weight:700; }
+
+/* 입력 카드 - 아래에서 올라옴 */
+.ob-input-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:16px; padding:20px;
+  margin-top:16px;
+  box-shadow:var(--shadow-sm);
+  opacity:0; transform:translateY(16px);
+  transition:opacity 0.32s ease, transform 0.32s ease;
+}
+.ob-input-card.visible { opacity:1; transform:translateY(0); }
+
+.ob-input {
+  width:100%; padding:12px 14px; border:1.5px solid var(--border);
+  border-radius:var(--rad-xs); font-size:15px; font-family:var(--font);
+  color:var(--text); background:var(--surface); outline:none;
+  transition:border-color var(--tr), box-shadow var(--tr);
+}
+.ob-input::placeholder { color:var(--text-hint); }
+.ob-input:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim); }
+
+/* 셀렉트 그룹 */
+.ob-select-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:4px; }
+.ob-select-wrap { display:flex; flex-direction:column; gap:5px; flex:1; min-width:110px; }
+.ob-select-wrap.ob-select-sm { max-width:90px; }
+.ob-sel-label { font-size:11px; font-weight:600; color:var(--text-hint); }
+.ob-select {
+  padding:10px 10px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
+  font-size:13px; font-family:var(--font); color:var(--text);
+  background:var(--surface); outline:none; appearance:none; cursor:pointer;
+  transition:border-color var(--tr);
+}
+.ob-select:focus { border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-dim); }
+
+.ob-chips { margin-bottom:0; }
+
+/* 다음 버튼 */
+.ob-next-btn {
+  display:inline-block; padding:11px 28px;
+  background:var(--blue); color:#fff; border:none;
+  border-radius:var(--rad-xs); font-size:14px; font-weight:700;
+  font-family:var(--font); cursor:pointer; transition:all var(--tr);
+  margin-top:14px; width:100%;
+}
+.ob-next-btn:hover { background:var(--blue-h); transform:translateY(-1px); }
+
+.ob-skip-btn {
+  display:block; width:100%; margin-top:8px; padding:10px;
+  background:transparent; border:1.5px solid var(--border);
+  border-radius:var(--rad-xs); font-size:13px; font-weight:500;
+  color:var(--text-hint); cursor:pointer; transition:all var(--tr); font-family:var(--font);
+  text-align:center;
+}
+.ob-skip-btn:hover { border-color:var(--border-focus); color:var(--text); }
+
+/* 확정 답변 */
+.ob-answer { font-size:14px; font-weight:600; color:var(--blue); padding:6px 0; }
+.ob-err { color:#e53935; font-size:12px; margin-top:6px; font-weight:500; }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     온보딩 페이지
+     ============================================================ -->
+<div id="page-onboarding" class="page active">
+  <!-- 상단 프로그레스 바 -->
+  <div class="ob-progress-wrap">
+    <div class="ob-progress-bar" id="ob-progress-bar"></div>
+    <div class="ob-progress-pct" id="ob-progress-pct">0%</div>
+  </div>
+
+  <!-- 로고 (좌측 고정) -->
+  <div class="ob-logo-top">
+    <img src="images/logo.png" alt="로고" style="width:36px;height:36px;object-fit:contain;" onerror="this.style.display='none'"/>
+    <span class="ob-logo-label">상상파인더</span>
+  </div>
+
+  <!-- 스텝 컨테이너 -->
+  <div class="ob-step-outer">
+    <!-- 스텝들 -->
+    <div class="ob-msg-area" id="ob-msg-area"></div>
+    <div id="ob-steps"></div>
+  </div>
+</div>
+
+
+<!-- ============================================================
+     메인 페이지
+     ============================================================ -->
+<div id="page-main" class="page">
+
+  <!-- 사이드바 -->
+  <aside class="sidebar">
+    <div class="sb-top">
+      <div class="sb-logo-row">
+        <div class="sb-logo-icon" id="sb-logo-icon">
+          <img src="images/logo.png" alt="로고" style="width:36px;height:36px;object-fit:contain;" onerror="this.style.display='none';this.parentElement.textContent='🔍'"/>
+        </div>
+        <div>
+          <div class="sb-logo-name">상상파인더</div>
+          <div class="sb-logo-en">Hansung Notice Finder</div>
+        </div>
+      </div>
+
+      <div class="sb-section">내 정보</div>
+      <div id="sb-info"></div>
+
+      <hr class="sb-divider"/>
+      <div class="sb-section">바로가기</div>
+      <div id="sb-links">
+        <a href="https://www.hansung.ac.kr/hansung/index.do" target="_blank" class="sb-link"><img src="images/icon_hansung.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="한성대학교"/>한성대학교<span class="arrow">↗</span></a>
+        <a href="https://learn.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_eclass.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="e-class"/>한성 e-class<span class="arrow">↗</span></a>
+        <a href="https://info.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_info.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="종합정보시스템"/>종합정보시스템<span class="arrow">↗</span></a>
+        <a href="https://hsportal.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_smart.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="스마트자기관리"/>스마트자기관리시스템<span class="arrow">↗</span></a>
+        <a href="https://hsel.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_library.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="학술정보관"/>학술정보관<span class="arrow">↗</span></a>
+      </div>
+    </div>
+
+    <div class="sb-bottom">
+      <hr class="sb-divider"/>
+      <button class="sb-reset-btn" onclick="resetApp()">내 정보 다시 입력</button>
+    </div>
+  </aside>
+
+  <!-- 콘텐츠 -->
+  <div class="main-content-wrap">
+  <div class="main-content">
+    <div class="tabs-wrap">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('chat',this)">챗봇 검색</button>
+      <button class="tab-btn" onclick="switchTab('rec',this)">추천 게시물</button>
+    </div>
+    </div>
+
+    <!-- 챗봇 탭 -->
+    <div id="tab-chat" class="tab-panel active">
+      <div class="chat-shell">
+        <div class="mac-bar">
+          <div class="mac-dot mac-dot-r"></div>
+          <div class="mac-dot mac-dot-y"></div>
+          <div class="mac-dot mac-dot-g"></div>
+        </div>
+        <div class="chat-body" id="chat-body">
+          <!-- 웰컴 or 메시지 -->
+        </div>
+      </div>
+
+      <div class="chat-input-row">
+        <select class="chat-cat-select" id="chat-cat">
+          <option value="전체">전체</option>
+          <option>취업/채용</option><option>학사행정</option><option>학생활동/비교과</option>
+          <option>대외활동</option><option>공모전/경진대회</option><option>국제교류</option>
+          <option>창업</option><option>장학금</option><option>기숙사</option><option>ROTC</option>
+        </select>
+        <input type="text" class="chat-text-input" id="chat-input" placeholder="무엇이 궁금하세요?" onkeydown="if(event.key==='Enter')sendChat()"/>
+        <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()">전송</button>
+      </div>
+      <button class="chat-reset-btn" id="chat-reset-btn" onclick="resetChat()" style="display:none;">대화 초기화</button>
+    </div>
+
+    <!-- 추천 탭 -->
+    <div id="tab-rec" class="tab-panel">
+      <div class="profile-banner">
+        <img src="images/sangsangboogi.png" style="width:56px;height:56px;object-fit:contain;flex-shrink:0;" alt="상상부기"/>
+        <div>
+          <div class="pname" id="rec-profile-name"></div>
+          <div class="ptrack" id="rec-profile-sub"></div>
+        </div>
+      </div>
+
+      <div class="rec-btn-wrap">
+        <button class="rec-btn" onclick="fetchRecommend()">맞춤 공지 추천받기</button>
+      </div>
+
+      <div id="rec-results"></div>
+    </div>
+  </div><!-- main-content -->
+  </div><!-- main-content-wrap -->
+</div>
+
+<script>
+
+/* ── 지역 데이터 ─────────────────────────────────────────── */
+const REGION_DATA = {
+  '서울특별시': ['종로구','중구','용산구','성동구','광진구','동대문구','중랑구','성북구','강북구','도봉구','노원구','은평구','서대문구','마포구','양천구','강서구','구로구','금천구','영등포구','동작구','관악구','서초구','강남구','송파구','강동구'],
+  '경기도': ['수원시','용인시','고양시','화성시','성남시','부천시','남양주시','안산시','평택시','안양시','시흥시','파주시','김포시','의정부시','광주시','하남시','양주시','광명시','군포시','오산시','이천시','안성시','구리시','포천시','의왕시','양평군','여주시','동두천시','과천시','가평군','연천군'],
+  '부산광역시': [], '대구광역시': [], '인천광역시': [], '광주광역시': [],
+  '대전광역시': [], '울산광역시': [], '세종특별자치시': [],
+  '강원특별자치도': [], '충청북도': [], '충청남도': [],
+  '전북특별자치도': [], '전라남도': [], '경상북도': [], '경상남도': [],
+  '제주특별자치도': [],
+};
+
+function buildRegionUI(containerId, currentVal) {
+  const wrap = document.getElementById(containerId);
+  if (!wrap) return;
+  const saved = currentVal || '';
+  // 저장값에서 광역시/도 파싱
+  const savedParts = saved.split(' ');
+  const savedTop = savedParts[0] || '';
+  const savedSub = savedParts[1] || '';
+
+  const topSel = document.createElement('select');
+  topSel.className = 'ob-select'; topSel.style.cssText = 'width:100%;margin-bottom:8px;';
+  topSel.id = containerId + '-top';
+  topSel.innerHTML = Object.keys(REGION_DATA).map(k =>
+    `<option value="${k}"${k===savedTop?' selected':''}>${k}</option>`).join('');
+
+  const subWrap = document.createElement('div');
+  subWrap.id = containerId + '-sub';
+
+  function renderSub(top, selectedSub) {
+    const subs = REGION_DATA[top] || [];
+    if (!subs.length) { subWrap.innerHTML = ''; return; }
+    subWrap.innerHTML = '<div class="ob-sel-label" style="margin-bottom:6px;">세부 지역</div>' +
+      '<div class="multi-chips" style="max-height:120px;overflow-y:auto;">' +
+      subs.map(s => `<div class="chip${s===selectedSub?' active':''}" style="font-size:11px;padding:4px 10px;"
+        onclick="(function(el){el.parentElement.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));el.classList.add('active');})(this)"
+        data-val="${s}">${s}</div>`).join('') + '</div>';
+  }
+
+  renderSub(savedTop || Object.keys(REGION_DATA)[0], savedSub);
+  topSel.addEventListener('change', () => renderSub(topSel.value, ''));
+
+  wrap.innerHTML = '';
+  wrap.appendChild(topSel);
+  wrap.appendChild(subWrap);
+}
+
+function getRegionValue(containerId) {
+  const top = document.getElementById(containerId + '-top')?.value || '';
+  const subs = REGION_DATA[top] || [];
+  if (!subs.length) return top;
+  const activeSub = document.querySelector(`#${containerId}-sub .chip.active`);
+  return activeSub ? top + ' ' + activeSub.dataset.val : top;
+}
+
+/* ============================================================
+   데이터
+   ============================================================ */
+const COLLEGE_MAP = {
+  "크리에이티브인문예술대학":["영미문화콘텐츠트랙","영미언어정보트랙","한국어교육트랙","역사문화큐레이션트랙","역사콘텐츠트랙","지식정보문화트랙","디지털인문정보학트랙","동양화전공","서양화전공","한국무용전공","현대무용전공","발레전공"],
+  "미래융합사회과학대학":["국제무역트랙","글로벌비지니스트랙","기업ㆍ경제분석트랙","경제금융투자트랙","공공행정트랙","법&정책트랙","부동산트랙","스마트도시ㆍ교통계획트랙","기업경영트랙","비지니스애널리틱스트랙","회계ㆍ재무경영트랙"],
+  "디자인대학":["패션마케팅트랙","패션디자인트랙","패션크리에이티브디렉션트랙","미디어디자인트랙","시각디자인트랙","영상ㆍ애니메이션디자인트랙","UX/UI디자인트랙","인테리어디자인트랙","VMDㆍ전시디자인트랙","게임그래픽디자인트랙","뷰티디자인매니지먼트학과"],
+  "IT공과대학":["모바일소프트웨어트랙","빅데이터트랙","디지털콘텐츠ㆍ가상현실트랙","웹공학트랙","전자트랙","시스템반도체트랙","기계시스템디자인트랙","AI로봇융합트랙","산업공학트랙","응용산업데이터공학트랙"],
+  "창의융합대학":["상상력인재학부","문학문화콘텐츠학과","AI응용학과","융합보안학과","미래모빌리티학과"],
+  "글로벌인재대학":["한국언어문화교육학과","글로벌K비지니스학과","영상엔터테인먼트학과","패션뷰티크리에이션학과","SW융합학과","글로벌벤처창업학과"],
+  "미래플러스대학":["융합행정학과","호텔외식경영학과","뷰티디자인학과","비지니스컨설팅학과","ICT융합디자인학과","AIㆍ소프트웨어학과","뷰티매니지먼트학과","디지털콘텐츠디자인학과","인테리어디자인학과","스마트제조혁신컨설팅학과"],
+};
+const DEPT_URLS = {
+  // 글로벌인재대학
+  "한국언어문화교육학과":"https://www.hansung.ac.kr/global/1511/subview.do",
+  "글로벌K비지니스학과":"https://www.hansung.ac.kr/global/1516/subview.do",
+  "영상엔터테인먼트학과":"https://www.hansung.ac.kr/global/1521/subview.do",
+  "패션뷰티크리에이션학과":"https://www.hansung.ac.kr/global/1526/subview.do",
+  "SW융합학과":"https://www.hansung.ac.kr/global/1531/subview.do",
+  "글로벌벤처창업학과":"https://www.hansung.ac.kr/global/6807/subview.do",
+  // 미래플러스대학
+  "융합행정학과":"https://www.hansung.ac.kr/futureplus/731/subview.do",
+  "호텔외식경영학과":"https://www.hansung.ac.kr/futureplus/734/subview.do",
+  "뷰티디자인학과":"https://www.hansung.ac.kr/futureplus/737/subview.do",
+  "비지니스컨설팅학과":"https://www.hansung.ac.kr/futureplus/740/subview.do",
+  "ICT융합디자인학과":"https://www.hansung.ac.kr/futureplus/743/subview.do",
+  "AIㆍ소프트웨어학과":"https://www.hansung.ac.kr/futureplus/746/subview.do",
+  "뷰티매니지먼트학과":"https://www.hansung.ac.kr/futureplus/749/subview.do",
+  "디지털콘텐츠디자인학과":"https://www.hansung.ac.kr/futureplus/754/subview.do",
+  "인테리어디자인학과":"https://www.hansung.ac.kr/futureplus/759/subview.do",
+  "스마트제조혁신컨설팅학과":"https://www.hansung.ac.kr/futureplus/764/subview.do",
+  // 창의융합대학
+  "상상력인재학부":"https://www.hansung.ac.kr/CreCon/2761/subview.do",
+  "문학문화콘텐츠학과":"https://www.hansung.ac.kr/CreCon/2768/subview.do",
+  "AI응용학과":"https://www.hansung.ac.kr/CreCon/2777/subview.do",
+  "융합보안학과":"https://www.hansung.ac.kr/CreCon/2787/subview.do",
+  "미래모빌리티학과":"https://www.hansung.ac.kr/CreCon/2796/subview.do",
+  // 미래융합사회과학대학
+  "국제무역트랙":"https://www.hansung.ac.kr/SclScn/5260/subview.do",
+  "글로벌비지니스트랙":"https://www.hansung.ac.kr/SclScn/5267/subview.do",
+  "기업ㆍ경제분석트랙":"https://www.hansung.ac.kr/SclScn/5274/subview.do",
+  "경제금융투자트랙":"https://www.hansung.ac.kr/SclScn/5281/subview.do",
+  "공공행정트랙":"https://www.hansung.ac.kr/SclScn/5295/subview.do",
+  "법&정책트랙":"https://www.hansung.ac.kr/SclScn/5303/subview.do",
+  "부동산트랙":"https://www.hansung.ac.kr/SclScn/5313/subview.do",
+  "스마트도시ㆍ교통계획트랙":"https://www.hansung.ac.kr/SclScn/5321/subview.do",
+  "기업경영트랙":"https://www.hansung.ac.kr/SclScn/5328/subview.do",
+  "비지니스애널리틱스트랙":"https://www.hansung.ac.kr/SclScn/5336/subview.do",
+  "회계ㆍ재무경영트랙":"https://www.hansung.ac.kr/SclScn/5344/subview.do",
+  // IT공과대학
+  "모바일소프트웨어트랙":"https://www.hansung.ac.kr/Engineering/4887/subview.do",
+  "빅데이터트랙":"https://www.hansung.ac.kr/Engineering/4894/subview.do",
+  "디지털콘텐츠ㆍ가상현실트랙":"https://www.hansung.ac.kr/Engineering/4901/subview.do",
+  "웹공학트랙":"https://www.hansung.ac.kr/Engineering/4908/subview.do",
+  "전자트랙":"https://www.hansung.ac.kr/Engineering/4915/subview.do",
+  "시스템반도체트랙":"https://www.hansung.ac.kr/Engineering/4922/subview.do",
+  "기계시스템디자인트랙":"https://www.hansung.ac.kr/Engineering/4929/subview.do",
+  "AI로봇융합트랙":"https://www.hansung.ac.kr/Engineering/4936/subview.do",
+  "산업공학트랙":"https://www.hansung.ac.kr/Engineering/4992/subview.do",
+  "응용산업데이터공학트랙":"https://www.hansung.ac.kr/Engineering/5020/subview.do",
+  // 디자인대학
+  "패션마케팅트랙":"https://www.hansung.ac.kr/Design/5103/subview.do",
+  "패션디자인트랙":"https://www.hansung.ac.kr/Design/5110/subview.do",
+  "패션크리에이티브디렉션트랙":"https://www.hansung.ac.kr/Design/5117/subview.do",
+  "미디어디자인트랙":"https://www.hansung.ac.kr/Design/5124/subview.do",
+  "시각디자인트랙":"https://www.hansung.ac.kr/Design/5145/subview.do",
+  "영상ㆍ애니메이션디자인트랙":"https://www.hansung.ac.kr/Design/5131/subview.do",
+  "UX/UI디자인트랙":"https://www.hansung.ac.kr/Design/5173/subview.do",
+  "인테리어디자인트랙":"https://www.hansung.ac.kr/Design/5159/subview.do",
+  "VMDㆍ전시디자인트랙":"https://www.hansung.ac.kr/Design/5152/subview.do",
+  "게임그래픽디자인트랙":"https://www.hansung.ac.kr/Design/5166/subview.do",
+  "뷰티디자인매니지먼트학과":"https://www.hansung.ac.kr/Design/5180/subview.do",
+  // 크리에이티브인문예술대학
+  "영미문화콘텐츠트랙":"https://www.hansung.ac.kr/HmnArt/5641/subview.do",
+  "영미언어정보트랙":"https://www.hansung.ac.kr/HmnArt/5577/subview.do",
+  "한국어교육트랙":"https://www.hansung.ac.kr/HmnArt/5584/subview.do",
+  "역사문화큐레이션트랙":"https://www.hansung.ac.kr/HmnArt/5627/subview.do",
+  "역사콘텐츠트랙":"https://www.hansung.ac.kr/HmnArt/5634/subview.do",
+  "지식정보문화트랙":"https://www.hansung.ac.kr/HmnArt/5613/subview.do",
+  "디지털인문정보학트랙":"https://www.hansung.ac.kr/HmnArt/5620/subview.do",
+  "동양화전공":"https://www.hansung.ac.kr/HmnArt/5648/subview.do",
+  "서양화전공":"https://www.hansung.ac.kr/HmnArt/5655/subview.do",
+  "한국무용전공":"https://www.hansung.ac.kr/HmnArt/5662/subview.do",
+  "현대무용전공":"https://www.hansung.ac.kr/HmnArt/5669/subview.do",
+  "발레전공":"https://www.hansung.ac.kr/HmnArt/5676/subview.do",
+};
+const INTERESTS = ["취업/채용","학사행정","학생활동/비교과","대외활동","공모전/경진대회","국제교류","창업","장학금","기숙사","ROTC"];
+const DORMS = ["상상빌리지","우촌학사","동소문행복기숙사","에피소드","임대기숙사"];
+
+/* ============================================================
+   상태
+   ============================================================ */
+let profile = null;
+let chatHistory = [];
+let selectedInterests = [];
+let selectedDorms = [];
+
+/* ============================================================
+   초기화
+   ============================================================ */
+window.addEventListener('DOMContentLoaded', () => {
+  // 저장된 프로필 복원
+  try {
+    const saved = localStorage.getItem('sf_profile');
+    if (saved) { profile = JSON.parse(saved); showMainPage(); return; }
+  } catch(e){}
+
+  initOnboarding();
+});
+
+/* ============================================================
+   온보딩 스텝 시스템
+   ============================================================ */
+const OB = { step:0, data:{}, steps:[], selectedInterests:[], selectedDorms:[], busy:false };
+
+function buildSteps() {
+  return [
+    { id:'welcome' },
+    { id:'name' },
+    { id:'track' },
+    { id:'interests' },
+    { id:'phone' },
+  ];
+}
+
+function initOnboarding() {
+  OB.steps = buildSteps();
+  OB.busy = false;
+  setProgress(0);
+  setTimeout(() => showStep(0), 300);
+}
+
+function setProgress(pct) {
+  document.getElementById('ob-progress-bar').style.width = pct + '%';
+  document.getElementById('ob-progress-pct').textContent = Math.round(pct) + '%';
+}
+
+function showStep(idx) {
+  if (OB.busy) return;
+  OB.busy = true;
+  const msgArea  = document.getElementById('ob-msg-area');
+  const inpArea  = document.getElementById('ob-steps');
+  const step = OB.steps[idx];
+  if (!step) { OB.busy = false; return; }
+
+  // 기존 입력카드 페이드아웃
+  const prevEls = Array.from(inpArea.children);
+  const delay = prevEls.length > 0 ? 240 : 0;
+  prevEls.forEach(s => {
+    s.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+    s.style.opacity = '0';
+    s.style.transform = 'translateY(-8px)';
+  });
+
+  setTimeout(() => {
+    inpArea.innerHTML = '';
+    OB.step = idx;
+    OB.busy = false;
+
+    const realSteps = OB.steps.filter(s => s.id !== 'welcome');
+    const passedReal = OB.steps.slice(0, idx).filter(s => s.id !== 'welcome').length;
+    setProgress(realSteps.length > 0 ? (passedReal / realSteps.length) * 100 : 0);
+
+    // 메시지 업데이트 (위 고정)
+    const msgMap = {
+      welcome:     { icon_img: 'images/icon_상상부기.png', html: '<strong>상상파인더에 오신 걸 환영합니다!</strong><br>여러분의 공지를 책임져드릴게요.' },
+      name:        { icon_img: 'images/icon_상상부기.png', html: '먼저 <strong>이름</strong>을 알려주실 수 있나요?' },
+      track:       { icon_img: 'images/icon_한성냥이.png', html: '<strong>트랙/학과 정보</strong>도 알려주세요!' },
+      interests:   { icon_img: 'images/icon_상찌.png', html: '<strong>관심사</strong>도 골라주세요. (복수 선택 가능)' },
+      scholarship: { icon_img: 'images/icon_상찌.png', html: '장학금 맞춤 추천을 위해 <strong>조금만 더</strong> 알려주세요!' },
+      dorm:        { icon_img: 'images/icon_상찌.png', html: '기숙사 맞춤 추천을 위한 정보를 알려주세요!' },
+      rotc:        { icon_img: 'images/icon_상찌.png', html: 'ROTC 후보생 모집 공지를 받으시겠어요?' },
+      phone:       { icon_img: 'images/icon_꼬꼬꾸꾸.png', icon_size: 40, html: '마지막으로, 새 공지 알림을 받으려면<br><strong>전화번호</strong>를 남겨주세요! <span style="font-size:12px;color:var(--text-hint);">(선택사항)</span>' },
+    };
+    const msg = msgMap[step.id];
+    if (msg) {
+      const iconSize = msg.icon_size || 28;
+      const newHtml = `<div class="ob-msg"><div class="ob-msg-icon">${msg.icon_img ? '<img src="'+msg.icon_img+'" style="width:'+iconSize+'px;height:'+iconSize+'px;object-fit:contain;" alt=""/>' : (msg.icon||'')} </div><div class="ob-msg-text">${msg.html}</div></div>`;
+      if (!msgArea.innerHTML.trim()) {
+        msgArea.style.transition = 'none';
+        msgArea.style.opacity = '0';
+        msgArea.style.transform = 'translateY(8px)';
+        msgArea.innerHTML = newHtml;
+        requestAnimationFrame(() => {
+          msgArea.style.transition = 'opacity 0.38s ease, transform 0.38s ease';
+          msgArea.style.opacity = '1';
+          msgArea.style.transform = 'translateY(0)';
+        });
+      } else {
+        msgArea.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+        msgArea.style.opacity = '0';
+        msgArea.style.transform = 'translateY(-5px)';
+        setTimeout(() => {
+          msgArea.innerHTML = newHtml;
+          msgArea.style.transition = 'none';
+          msgArea.style.transform = 'translateY(8px)';
+          requestAnimationFrame(() => requestAnimationFrame(() => {
+            msgArea.style.transition = 'opacity 0.32s ease, transform 0.32s ease';
+            msgArea.style.opacity = '1';
+            msgArea.style.transform = 'translateY(0)';
+          }));
+        }, 200);
+      }
+    }
+
+    if (step.id === 'welcome') {
+      setTimeout(() => nextStep(), 2200);
+      return;
+    }
+
+    const inputDelay = step.id === 'interests' ? 900 : 1600;
+
+    setTimeout(() => {
+      const inp = document.createElement('div');
+      inp.className = 'ob-input-card';
+
+      if (step.id === 'name') {
+        inp.innerHTML = `
+          <input class="ob-input" id="ob-name" type="text" placeholder="예) 홍길동" autocomplete="off" value="${OB.data.name||''}"/>
+          <div class="ob-err" id="ob-name-err"></div>
+          <button class="ob-next-btn" onclick="submitName()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+        setTimeout(() => document.getElementById('ob-name').focus(), 150);
+        document.getElementById('ob-name').addEventListener('keydown', e => { if(e.key==='Enter') submitName(); });
+
+      } else if (step.id === 'track') {
+        const colOpts = Object.keys(COLLEGE_MAP).map(c =>
+          `<option value="${c}"${c===OB.data.college?' selected':''}>${c}</option>`).join('');
+        const col0 = OB.data.college || Object.keys(COLLEGE_MAP)[0];
+        const trkOpts = (COLLEGE_MAP[col0]||[]).map(t =>
+          `<option value="${t}"${t===OB.data.track?' selected':''}>${t}</option>`).join('');
+        inp.innerHTML = `
+          <div class="ob-select-row">
+            <div class="ob-select-wrap"><label class="ob-sel-label">단과대학</label>
+              <select class="ob-select" id="ob-college">${colOpts}</select></div>
+            <div class="ob-select-wrap"><label class="ob-sel-label">트랙 / 학과</label>
+              <select class="ob-select" id="ob-track">${trkOpts}</select></div>
+            <div class="ob-select-wrap ob-select-sm"><label class="ob-sel-label">학년</label>
+              <select class="ob-select" id="ob-grade">
+                ${['1학년','2학년','3학년','4학년'].map(g=>`<option${g===OB.data.grade?' selected':''}>${g}</option>`).join('')}
+              </select></div>
+          </div>
+          <button class="ob-next-btn" onclick="submitTrack()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+        document.getElementById('ob-college').addEventListener('change', () => {
+          const col = document.getElementById('ob-college').value;
+          document.getElementById('ob-track').innerHTML =
+            (COLLEGE_MAP[col]||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+        });
+
+      } else if (step.id === 'interests') {
+        const chips = INTERESTS.map(i =>
+          `<div class="chip${OB.selectedInterests.includes(i)?' active':''}" onclick="toggleObInterest(this,'${i}')">${i}</div>`).join('');
+        inp.innerHTML = `<div class="multi-chips ob-chips">${chips}</div>
+          <button class="ob-next-btn" style="margin-top:16px;" onclick="submitInterests()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+
+      } else if (step.id === 'scholarship') {
+        inp.innerHTML = `
+          <div class="ob-select-row">
+            <div class="ob-select-wrap"><label class="ob-sel-label">소득분위</label>
+              <select class="ob-select" id="ob-income">${['모름/해당없음','1분위','2분위','3분위','4분위','5분위','6분위','7분위','8분위','9분위','10분위'].map(v=>`<option${v===(OB.data.income_level||'모름/해당없음')?' selected':''}>${v}</option>`).join('')}</select></div>
+            <div class="ob-select-wrap"><label class="ob-sel-label">최근 학점</label>
+              <input class="ob-input" id="ob-gpa" type="number" min="0" max="4.5" step="0.1" placeholder="0.0 ~ 4.5" value="${OB.data.gpa&&OB.data.gpa!=='모름/해당없음'?OB.data.gpa:''}" style="padding:10px 10px;font-size:13px;"/></div>
+            <div class="ob-select-wrap"><label class="ob-sel-label">학자금 대출</label>
+              <select class="ob-select" id="ob-loan"><option value='관심없음'${(OB.data.loan||'관심없음')==='관심없음'?' selected':''}>관심없음</option><option value='관심있음'${OB.data.loan==='관심있음'?' selected':''}>관심있음</option></select></div>
+          </div>
+          <div style="margin-top:12px;"><label class="ob-sel-label" style="margin-bottom:8px;display:block;">거주 지역</label>
+            <div id="ob-region-wrap"></div>
+          </div>
+          <button class="ob-next-btn" onclick="nextStep()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+        setTimeout(() => buildRegionUI('ob-region-wrap', OB.data.region||''), 50);
+
+      } else if (step.id === 'dorm') {
+        const dormChips = DORMS.map(d=>
+          `<div class="chip${OB.selectedDorms.includes(d)?' active':''}" onclick="toggleObDorm(this,'${d}')">${d}</div>`).join('');
+        inp.innerHTML = `
+          <div class="ob-select-row" style="margin-bottom:14px;">
+            <div class="ob-select-wrap ob-select-sm"><label class="ob-sel-label">성별</label>
+              <select class="ob-select" id="ob-gender">
+                ${['선택안함','남성','여성'].map(v=>`<option${v===(OB.data.gender||'선택안함')?' selected':''}>${v}</option>`).join('')}
+              </select></div>
+          </div>
+          <div class="ob-sel-label" style="margin-bottom:8px;">관심 기숙사</div>
+          <div class="multi-chips ob-chips">${dormChips}</div>
+          <button class="ob-next-btn" style="margin-top:16px;" onclick="nextStep()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+
+      } else if (step.id === 'rotc') {
+        inp.innerHTML = `
+          <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;color:var(--text);">
+            <input type="checkbox" id="ob-rotc"${OB.data.rotc_interest!==false?' checked':''} style="width:17px;height:17px;accent-color:var(--blue);cursor:pointer;"/>
+            ROTC 후보생 모집 공지 받기
+          </label>
+          <button class="ob-next-btn" style="margin-top:16px;" onclick="nextStep()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+
+      } else if (step.id === 'phone') {
+        const [ph1,ph2,ph3] = (OB.data.phone||'--').split('-');
+        inp.innerHTML = `
+          <div class="phone-row">
+            <input class="ob-input" id="ob-phone1" type="text" placeholder="010" maxlength="3" style="text-align:center;" value="${ph1||''}"/>
+            <span style="color:var(--text-hint);font-size:18px;">–</span>
+            <input class="ob-input" id="ob-phone2" type="text" placeholder="0000" maxlength="4" style="text-align:center;" value="${ph2||''}"/>
+            <span style="color:var(--text-hint);font-size:18px;">–</span>
+            <input class="ob-input" id="ob-phone3" type="text" placeholder="0000" maxlength="4" style="text-align:center;" value="${ph3||''}"/>
+          </div>
+          <button class="ob-next-btn" onclick="submitAll()" style="margin-top:14px;">시작하기</button>
+          <button class="ob-skip-btn" onclick="submitAll()">전화번호 없이 시작</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+        ['ob-phone1','ob-phone2','ob-phone3'].forEach((id,i,arr) => {
+          document.getElementById(id).addEventListener('input', e => {
+            e.target.value = e.target.value.replace(/\D/g,'');
+            if (e.target.value.length >= e.target.maxLength && i < arr.length-1)
+              document.getElementById(arr[i+1]).focus();
+          });
+        });
+      }
+    }, inputDelay);
+  }, delay);
+}
+
+function nextStep() { showStep(OB.step + 1); }
+
+function submitName() {
+  const val = (document.getElementById('ob-name')?.value || '').trim();
+  if (!val) { document.getElementById('ob-name-err').textContent = '이름을 입력해주세요.'; document.getElementById('ob-name').focus(); return; }
+  OB.data.name = val;
+  nextStep();
+}
+
+function submitTrack() {
+  OB.data.college = document.getElementById('ob-college').value;
+  OB.data.track   = document.getElementById('ob-track').value;
+  OB.data.grade   = document.getElementById('ob-grade').value;
+  nextStep();
+}
+
+function toggleObInterest(chip, val) {
+  const idx = OB.selectedInterests.indexOf(val);
+  if (idx===-1) { OB.selectedInterests.push(val); chip.classList.add('active'); }
+  else { OB.selectedInterests.splice(idx,1); chip.classList.remove('active'); }
+}
+
+function toggleObDorm(chip, val) {
+  const idx = OB.selectedDorms.indexOf(val);
+  if (idx===-1) { OB.selectedDorms.push(val); chip.classList.add('active'); }
+  else { OB.selectedDorms.splice(idx,1); chip.classList.remove('active'); }
+}
+
+function submitInterests() {
+  OB.data.interests = [...OB.selectedInterests];
+  const baseIdx = OB.steps.findIndex(s => s.id === 'interests');
+  const extras = [];
+  if (OB.selectedInterests.includes('장학금')) extras.push({ id:'scholarship' });
+  if (OB.selectedInterests.includes('기숙사'))  extras.push({ id:'dorm' });
+  if (OB.selectedInterests.includes('ROTC'))    extras.push({ id:'rotc' });
+  OB.steps.splice(baseIdx+1, 0, ...extras);
+  nextStep();
+}
+
+function submitAll() {
+  const p1 = document.getElementById('ob-phone1')?.value||'';
+  const p2 = document.getElementById('ob-phone2')?.value||'';
+  const p3 = document.getElementById('ob-phone3')?.value||'';
+  const phone = (p1.length===3&&p2.length===4&&p3.length===4) ? `${p1}-${p2}-${p3}` : null;
+  setProgress(100);
+  profile = {
+    name: OB.data.name||'', college: OB.data.college||'', track: OB.data.track||'',
+    grade: OB.data.grade||'', interests: OB.data.interests||[],
+    income_level: document.getElementById('ob-income')?.value||null,
+    gpa:          document.getElementById('ob-gpa')?.value||null,
+    region:       getRegionValue('ob-region-wrap')||null,
+    loan:         document.getElementById('ob-loan')?.value||null,
+    gender:       document.getElementById('ob-gender')?.value||null,
+    dorm_interest:[...OB.selectedDorms],
+    rotc_interest: document.getElementById('ob-rotc')?.checked||false,
+    phone,
+  };
+  localStorage.setItem('sf_profile', JSON.stringify(profile));
+  setTimeout(() => showMainPage(), 400);
+}
+
+
+/* ============================================================
+   메인 페이지 렌더링
+   ============================================================ */
+function showMainPage() {
+  document.getElementById('page-onboarding').classList.remove('active');
+  document.getElementById('page-main').classList.add('active');
+
+  // 사이드바 내 정보 (초기화 후 렌더)
+  const info = document.getElementById('sb-info');
+  info.innerHTML = '';
+  [['이름', profile.name], ['단과대학', profile.college], ['트랙/학과', profile.track], ['학년', profile.grade]].forEach(([k, v]) => {
+    info.innerHTML += `<div class="sb-info-row"><span class="sb-info-key">${k}</span><span class="sb-info-val">${v}</span></div>`;
+  });
+
+  // 바로가기 (기본 링크 고정 + 트랙 링크 추가, 중복 방지)
+  const sbLinks = document.getElementById('sb-links');
+  sbLinks.innerHTML = `
+    <a href="https://www.hansung.ac.kr/hansung/index.do" target="_blank" class="sb-link"><img src="images/icon_hansung.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="한성대학교"/>한성대학교<span class="arrow">↗</span></a>
+    <a href="https://learn.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_eclass.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="e-class"/>한성 e-class<span class="arrow">↗</span></a>
+    <a href="https://info.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_info.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="종합정보시스템"/>종합정보시스템<span class="arrow">↗</span></a>
+    <a href="https://hsportal.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_smart.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="스마트자기관리"/>스마트자기관리시스템<span class="arrow">↗</span></a>
+    <a href="https://hsel.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_library.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="학술정보관"/>학술정보관<span class="arrow">↗</span></a>`;
+  if (profile.track && DEPT_URLS[profile.track]) {
+    sbLinks.innerHTML += `<a href="${DEPT_URLS[profile.track]}" target="_blank" class="sb-link"><img src="images/icon_track.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="트랙"/>${profile.track}<span class="arrow">↗</span></a>`;
+  }
+
+  // 추천 탭 프로필
+  document.getElementById('rec-profile-name').textContent = `${profile.college} · ${profile.track} · ${profile.grade}`;
+  document.getElementById('rec-profile-sub').textContent  = `관심사: ${profile.interests.join(', ') || '없음'}`;
+
+  // 웰컴 채팅
+  renderWelcome();
+}
+
+/* ============================================================
+   탭 전환
+   ============================================================ */
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+/* ============================================================
+   챗봇
+   ============================================================ */
+function renderWelcome() {
+  const body = document.getElementById('chat-body');
+  body.innerHTML = `
+    <div class="chat-welcome">
+      <div class="welcome-icon">
+        <img src="images/hsu.png" alt="한성대" style="width:60px;height:60px;object-fit:contain;display:block;margin:0 auto 4px;" onerror="this.outerHTML='<span style=\\'font-size:48px;display:block;\\'>🏫</span>'"/>
+      </div>
+      <div class="welcome-title">안녕하세요, ${profile.name}님!</div>
+      <div class="welcome-hints">
+        한성대 공지를 자연어로 검색해보세요.<br/>
+        <span class="hint-pill" onclick="setInputAndSend('장학금 신청 기간 알려줘')">장학금 신청 기간 알려줘</span>
+        <span class="hint-pill" onclick="setInputAndSend('취업박람회 언제야?')">취업박람회 언제야?</span>
+        <span class="hint-pill" onclick="setInputAndSend('비교과 프로그램 추천해줘')">비교과 프로그램 추천해줘</span>
+      </div>
+    </div>`;
+}
+
+function setInputAndSend(text) {
+  document.getElementById('chat-input').value = text;
+  sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+  const cat = document.getElementById('chat-cat').value;
+
+  input.value = '';
+  document.getElementById('chat-send-btn').disabled = true;
+
+  // 웰컴 제거
+  const welcome = document.querySelector('.chat-welcome');
+  if (welcome) welcome.remove();
+
+  chatHistory.push({ role:'user', content:text });
+  appendBubble('user', text);
+  document.getElementById('chat-reset-btn').style.display = 'block';
+
+  // 로딩
+  const loadEl = appendTyping();
+
+  try {
+    // 실제 환경에서는 백엔드 API를 호출합니다.
+    // 여기서는 Anthropic API를 직접 사용해 시뮬레이션합니다.
+    const res = await callChatAPI(text, cat);
+    loadEl.remove();
+    appendBubble('bot', res.reply);
+    if (res.results && res.results.length) renderRefCards(res.results.slice(0,3));
+    chatHistory.push({ role:'bot', content:res.reply, results:res.results });
+  } catch(e) {
+    loadEl.remove();
+    appendBubble('bot', `오류가 발생했습니다: ${e.message}`);
+  }
+
+  document.getElementById('chat-send-btn').disabled = false;
+  scrollChatBottom();
+}
+
+const API_BASE = 'http://localhost:8000';
+
+async function callChatAPI(query, category) {
+  const res = await fetch(`${API_BASE}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      query,
+      category,
+      profile,
+      history: chatHistory,
+      is_first: chatHistory.length === 0,
+    })
+  });
+  if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+  return await res.json(); // { reply, results }
+}
+
+function appendBubble(role, text) {
+  const body = document.getElementById('chat-body');
+  const el = document.createElement('div');
+  el.className = role === 'user' ? 'bubble-user' : 'bubble-bot';
+  el.textContent = text;
+  body.appendChild(el);
+  scrollChatBottom();
+}
+
+function appendTyping() {
+  const body = document.getElementById('chat-body');
+  const el = document.createElement('div');
+  el.className = 'bubble-bot';
+  el.style.padding = '12px 18px';
+  el.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  body.appendChild(el);
+  scrollChatBottom();
+  return el;
+}
+
+function renderRefCards(results) {
+  const body = document.getElementById('chat-body');
+  results.forEach((r, i) => {
+    const el = document.createElement('div');
+    el.className = 'ref-card';
+    el.innerHTML = `
+      <div class="ref-card-meta">
+        <span class="ref-label">참고 공지 Top${i+1}</span>
+        <span class="tag">${escHtml(r.category||'기타')}</span>
+        <span class="tag tag-gray">${escHtml(r.date||'')}</span>
+      </div>
+      <div class="ref-title">${escHtml(r.title||'')}</div>
+      <a href="${escHtml(r.url||'#')}" target="_blank" class="ref-link">공지 바로가기 →</a>`;
+    body.appendChild(el);
+  });
+  scrollChatBottom();
+}
+
+function scrollChatBottom() {
+  const body = document.getElementById('chat-body');
+  body.scrollTop = body.scrollHeight;
+}
+
+function resetChat() {
+  chatHistory = [];
+  document.getElementById('chat-reset-btn').style.display = 'none';
+  renderWelcome();
+}
+
+/* ============================================================
+   추천 탭
+   ============================================================ */
+async function fetchRecommend() {
+  const btn = document.querySelector('.rec-btn');
+  btn.disabled = true; btn.textContent = '불러오는 중...';
+  const out = document.getElementById('rec-results');
+  out.innerHTML = '<div class="spinner-wrap"><div class="spinner"></div><span>맞춤 공지를 분석하고 있어요...</span></div>';
+
+  try {
+    const res = await fetch(`${API_BASE}/api/recommend`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ profile })
+    });
+    if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
+    const data = await res.json();
+    const notices = data.notices || [];
+
+    out.innerHTML = '';
+    if (!notices.length) {
+      out.innerHTML = '<div class="empty-state">추천 결과가 없습니다.</div>';
+    } else {
+      out.innerHTML = `<div class="rec-section-title">맞춤 추천 공지 (${notices.length}개)</div>`;
+      notices.forEach(n => out.appendChild(buildNoticeCard(n)));
+    }
+  } catch(e) {
+    out.innerHTML = `<div class="empty-state">오류: ${e.message}<br><small>FastAPI 서버가 실행 중인지 확인해주세요.</small></div>`;
+  }
+
+  btn.disabled = false; btn.textContent = '맞춤 공지 추천받기';
+}
+
+function buildNoticeCard(n) {
+  const date = (n.date || n.posted_at || '').slice(0,10);
+  const summary = n.summary || n.body?.replace(/<[^>]+>/g,'').slice(0,120) || '';
+  const el = document.createElement('div');
+  el.className = 'notice-card';
+  el.innerHTML = `
+    <div class="notice-card-meta">
+      <span class="notice-tag">${escHtml(n.category||'기타')}</span>
+      <span class="notice-date">${escHtml(date)}</span>
+    </div>
+    <div class="notice-title">${escHtml(n.title||'')}</div>
+    ${summary ? `<div class="notice-summary">${escHtml(summary)}</div>` : ''}
+    <div class="notice-footer">
+      <a href="${escHtml(n.url||'#')}" target="_blank" class="notice-link">공지 바로가기 →</a>
+    </div>`;
+  return el;
+}
+
+/* ============================================================
+   리셋
+   ============================================================ */
+function resetApp() {
+  // 사이드바에 수정 폼 인라인으로 띄우기
+  const existing = document.getElementById('sb-edit-modal');
+  if (existing) { existing.remove(); return; }
+
+  const col0 = profile.college || Object.keys(COLLEGE_MAP)[0];
+  const colOpts = Object.keys(COLLEGE_MAP).map(c =>
+    `<option value="${c}"${c===profile.college?' selected':''}>${c}</option>`).join('');
+  const trkOpts = (COLLEGE_MAP[col0]||[]).map(t =>
+    `<option value="${t}"${t===profile.track?' selected':''}>${t}</option>`).join('');
+  const interestChips = INTERESTS.map(i =>
+    `<div class="chip${(profile.interests||[]).includes(i)?' active':''}" onclick="editInterestToggle(this,'${i}')" data-val="${i}">${i}</div>`).join('');
+
+  // 현재 관심사 기반으로 추가 섹션 여부 결정
+  const hasScholarship = (profile.interests||[]).includes('장학금');
+  const hasDorm        = (profile.interests||[]).includes('기숙사');
+  const hasROTC        = (profile.interests||[]).includes('ROTC');
+
+  const scholarshipHTML = `
+    <div id="edit-scholarship-extra" style="${hasScholarship?'':'display:none;'}">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin:16px 0 10px;">장학금 맞춤 필터</div>
+      <div class="ob-select-row">
+        <div class="ob-select-wrap"><label class="ob-sel-label">소득분위</label>
+          <select class="ob-select" id="edit-income">${['모름/해당없음','1분위','2분위','3분위','4분위','5분위','6분위','7분위','8분위','9분위','10분위'].map(v=>`<option${v===(profile.income_level||'모름/해당없음')?' selected':''}>${v}</option>`).join('')}</select></div>
+        <div class="ob-select-wrap"><label class="ob-sel-label">최근 학점</label>
+          <input class="ob-input" id="edit-gpa" type="number" min="0" max="4.5" step="0.1" placeholder="0.0 ~ 4.5" value="${profile.gpa&&profile.gpa!=='모름/해당없음'?profile.gpa:''}" style="padding:10px 10px;font-size:13px;width:100%;"/></div>
+        <div class="ob-select-wrap"><label class="ob-sel-label">학자금 대출</label>
+          <select class="ob-select" id="edit-loan"><option value='관심없음'${(profile.loan||'관심없음')==='관심없음'?' selected':''}>관심없음</option><option value='관심있음'${profile.loan==='관심있음'?' selected':''}>관심있음</option></select></div>
+      </div>
+      <div style="margin-top:12px;"><label class="ob-sel-label" style="margin-bottom:8px;display:block;">거주 지역</label>
+        <div id="edit-region-wrap"></div>
+      </div>
+    </div>`;
+
+  const dormChips = DORMS.map(d =>
+    `<div class="chip${(profile.dorm_interest||[]).includes(d)?' active':''}" onclick="this.classList.toggle('active')" data-val="${d}">${d}</div>`).join('');
+  const dormHTML = `
+    <div id="edit-dorm-extra" style="${hasDorm?'':'display:none;'}">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin:16px 0 10px;">기숙사 맞춤 필터</div>
+      <div class="ob-select-row" style="margin-bottom:10px;">
+        <div class="ob-select-wrap ob-select-sm"><label class="ob-sel-label">성별</label>
+          <select class="ob-select" id="edit-gender">${['선택안함','남성','여성'].map(v=>`<option${v===(profile.gender||'선택안함')?' selected':''}>${v}</option>`).join('')}</select></div>
+      </div>
+      <div class="ob-sel-label" style="margin-bottom:8px;">관심 기숙사</div>
+      <div class="multi-chips" id="edit-dorms">${dormChips}</div>
+    </div>`;
+
+  const rotcHTML = `
+    <div id="edit-rotc-extra" style="${hasROTC?'':'display:none;'}">
+      <div style="font-size:12px;font-weight:700;color:var(--blue);margin:16px 0 10px;">ROTC</div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;cursor:pointer;color:var(--text);">
+        <input type="checkbox" id="edit-rotc"${profile.rotc_interest?' checked':''} style="width:16px;height:16px;accent-color:var(--blue);"/>
+        ROTC 후보생 모집 공지 받기
+      </label>
+    </div>`;
+
+  const modal = document.createElement('div');
+  modal.id = 'sb-edit-modal';
+  modal.style.cssText = `
+    position:fixed; inset:0; z-index:200;
+    background:rgba(0,0,0,0.35);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  `;
+  modal.innerHTML = `
+    <div style="background:var(--surface);border-radius:20px;padding:28px;width:100%;max-width:520px;
+      box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid var(--border);max-height:90vh;overflow-y:auto;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+        <div style="font-size:16px;font-weight:700;color:var(--text);">내 정보 수정</div>
+        <button onclick="document.getElementById('sb-edit-modal').remove()"
+          style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--text-hint);line-height:1;">✕</button>
+      </div>
+
+      <div class="row2" style="margin-bottom:14px;">
+        <div class="field"><label>이름</label>
+          <input class="ob-input" id="edit-name" type="text" value="${profile.name||''}"/></div>
+        <div class="field"><label>학년</label>
+          <select class="ob-select" id="edit-grade" style="width:100%;padding:12px 10px;">
+            ${['1학년','2학년','3학년','4학년'].map(g=>`<option${g===profile.grade?' selected':''}>${g}</option>`).join('')}
+          </select></div>
+      </div>
+
+      <div class="field" style="margin-bottom:14px;"><label>단과대학</label>
+        <select class="ob-select" id="edit-college" style="width:100%;padding:12px 10px;">${colOpts}</select></div>
+      <div class="field" style="margin-bottom:14px;"><label>트랙 / 학과</label>
+        <select class="ob-select" id="edit-track" style="width:100%;padding:12px 10px;">${trkOpts}</select></div>
+
+      <div class="field" style="margin-bottom:6px;"><label>관심사</label></div>
+      <div class="multi-chips" id="edit-interests" style="margin-bottom:4px;">${interestChips}</div>
+
+      ${scholarshipHTML}${dormHTML}${rotcHTML}
+
+      <div class="ob-err" id="edit-err" style="margin:12px 0 8px;"></div>
+      <button onclick="saveEditProfile()"
+        style="width:100%;padding:13px;background:var(--blue);color:#fff;border:none;border-radius:var(--rad-sm);
+        font-size:14px;font-weight:700;cursor:pointer;font-family:var(--font);margin-bottom:8px;">저장하기</button>
+      <button onclick="hardResetApp()"
+        style="width:100%;padding:10px;background:transparent;border:1.5px solid var(--border);border-radius:var(--rad-sm);
+        font-size:12px;font-weight:500;color:var(--text-hint);cursor:pointer;font-family:var(--font);transition:all 0.15s ease;"
+        onmouseover="this.style.borderColor='#e53935';this.style.color='#e53935';"
+        onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-hint)';">
+        처음부터 다시 설정
+      </button>
+    </div>`;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', e => { if(e.target===modal) modal.remove(); });
+
+  // 단과대 변경 시 트랙 업데이트
+  setTimeout(() => buildRegionUI('edit-region-wrap', profile.region||''), 50);
+  document.getElementById('edit-college').addEventListener('change', () => {
+    const col = document.getElementById('edit-college').value;
+    document.getElementById('edit-track').innerHTML =
+      (COLLEGE_MAP[col]||[]).map(t=>`<option value="${t}">${t}</option>`).join('');
+  });
+}
+
+// 관심사 토글 시 추가 섹션 동적 표시
+function editInterestToggle(chip, val) {
+  chip.classList.toggle('active');
+  const active = Array.from(document.querySelectorAll('#edit-interests .chip.active')).map(c=>c.dataset.val);
+  const show = (id, flag) => { const el = document.getElementById(id); if(el) el.style.display = flag ? '' : 'none'; };
+  show('edit-scholarship-extra', active.includes('장학금'));
+  if (active.includes('장학금')) setTimeout(() => buildRegionUI('edit-region-wrap', profile.region||''), 50);
+  show('edit-dorm-extra',        active.includes('기숙사'));
+  show('edit-rotc-extra',        active.includes('ROTC'));
+}
+
+function hardResetApp() {
+  document.getElementById('sb-edit-modal').remove();
+  profile = null; chatHistory = [];
+  OB.step = 0; OB.data = {}; OB.selectedInterests = []; OB.selectedDorms = []; OB.busy = false;
+  localStorage.removeItem('sf_profile');
+  document.getElementById('page-main').classList.remove('active');
+  document.getElementById('page-onboarding').classList.add('active');
+  document.getElementById('ob-steps').innerHTML = '';
+  document.getElementById('ob-msg-area').innerHTML = '';
+  OB.steps = buildSteps();
+  setProgress(0);
+  setTimeout(() => showStep(0), 200);
+}
+
+function saveEditProfile() {
+  const name = document.getElementById('edit-name').value.trim();
+  if (!name) { document.getElementById('edit-err').textContent = '이름을 입력해주세요.'; return; }
+  const interests    = Array.from(document.querySelectorAll('#edit-interests .chip.active')).map(c=>c.dataset.val);
+  const dormInterest = Array.from(document.querySelectorAll('#edit-dorms .chip.active')).map(c=>c.dataset.val);
+  profile.name          = name;
+  profile.college       = document.getElementById('edit-college').value;
+  profile.track         = document.getElementById('edit-track').value;
+  profile.grade         = document.getElementById('edit-grade').value;
+  profile.interests     = interests;
+  profile.income_level  = document.getElementById('edit-income')?.value  ?? profile.income_level;
+  profile.gpa           = document.getElementById('edit-gpa')?.value     ?? profile.gpa;
+  profile.region        = getRegionValue('edit-region-wrap') || profile.region;
+  profile.loan          = document.getElementById('edit-loan')?.value    ?? profile.loan;
+  profile.gender        = document.getElementById('edit-gender')?.value  ?? profile.gender;
+  profile.dorm_interest = dormInterest.length ? dormInterest : (profile.dorm_interest||[]);
+  profile.rotc_interest = document.getElementById('edit-rotc') ? document.getElementById('edit-rotc').checked : profile.rotc_interest;
+  localStorage.setItem('sf_profile', JSON.stringify(profile));
+  document.getElementById('sb-edit-modal').remove();
+  const info = document.getElementById('sb-info');
+  info.innerHTML = '';
+  [['이름',profile.name],['단과대학',profile.college],['트랙/학과',profile.track],['학년',profile.grade]].forEach(([k,v])=>{
+    info.innerHTML += `<div class="sb-info-row"><span class="sb-info-key">${k}</span><span class="sb-info-val">${v}</span></div>`;
+  });
+  const sbLinks = document.getElementById('sb-links');
+  sbLinks.innerHTML = `
+    <a href="https://www.hansung.ac.kr/hansung/index.do" target="_blank" class="sb-link"><img src="images/icon_hansung.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="한성대학교"/>한성대학교<span class="arrow">↗</span></a>
+    <a href="https://learn.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_eclass.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="e-class"/>한성 e-class<span class="arrow">↗</span></a>
+    <a href="https://info.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_info.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="종합정보시스템"/>종합정보시스템<span class="arrow">↗</span></a>
+    <a href="https://hsportal.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_smart.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="스마트자기관리"/>스마트자기관리시스템<span class="arrow">↗</span></a>
+    <a href="https://hsel.hansung.ac.kr/" target="_blank" class="sb-link"><img src="images/icon_library.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="학술정보관"/>학술정보관<span class="arrow">↗</span></a>`;
+  if (profile.track && DEPT_URLS[profile.track]) {
+    sbLinks.innerHTML += `<a href="${DEPT_URLS[profile.track]}" target="_blank" class="sb-link"><img src="images/icon_track.png" style="width:22px;height:22px;object-fit:contain;flex-shrink:0;" alt="트랙"/>${profile.track}<span class="arrow">↗</span></a>`;
+  }
+  document.getElementById('rec-profile-name').textContent = `${profile.college} · ${profile.track} · ${profile.grade}`;
+  document.getElementById('rec-profile-sub').textContent  = `관심사: ${profile.interests.join(', ')||'없음'}`;
+}
+
+/* ── 유틸 ──────────────────────────────────────────────── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>
