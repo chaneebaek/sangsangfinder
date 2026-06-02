@@ -197,36 +197,8 @@ def run_once(
                 logger.info("%s년 데이터 도달 — 수집 종료", item_year)
                 stop = True
                 break
-
-            # 날짜 파싱
-            try:
-                posted_date = datetime.strptime(item["date"][:10].replace(".", "-"), "%Y-%m-%d")
-                days_old = (datetime.now() - posted_date).days
-            except:
-                days_old = 999
-
             if item["url"] in seen:
-                # 45일 이내면 조회수 + notice_score 업데이트
-                if days_old <= 45 and storage == "supabase":
-                    try:
-                        from crawling.notice_processor import calc_notice_score
-                        notice_id_match = re.search(r'/(\d+)/artclView\.do', item["url"])
-                        notice_id = notice_id_match.group(1) if notice_id_match else None
-                        if notice_id:
-                            new_score = calc_notice_score({
-                                "views": item["views"],
-                                "posted_at": item["date"][:10].replace(".", "-"),
-                                "category": "기타",
-                            })
-                            from crawling.supabase_store import get_supabase
-                            get_supabase().table("notices").update({
-                                "views": item["views"],
-                                "notice_score": new_score,
-                            }).eq("notice_id", notice_id).execute()
-                            logger.info("[업데이트] %s views:%d score:%.4f", item["title"][:30], item["views"], new_score)
-                    except Exception as e:
-                        logger.warning("조회수 업데이트 실패: %s", e)
-                continue
+                continue                    # 이미 보유한 공지
 
             all_known = False
 
