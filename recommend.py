@@ -24,8 +24,8 @@ SUPABASE_KEY         = os.getenv("SUPABASE_KEY", "your_supabase_key")
 
 # ── 추천 가중치 ───────────────────────────────────────────────
 MODEL_WEIGHT    = 0.4
-CATEGORY_WEIGHT = 0.3
-JOB_TYPE_WEIGHT = 0.2
+CATEGORY_WEIGHT = 0.4
+JOB_TYPE_WEIGHT = 0.1
 SCORE_WEIGHT    = 0.1
 
 PENALTY_CATEGORIES     = ['국제교류', '대외활동', '창업']
