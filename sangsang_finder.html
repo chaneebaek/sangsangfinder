@@ -1231,15 +1231,64 @@ async function fetchRecommend() {
     });
     if (!res.ok) throw new Error(`서버 오류 (${res.status})`);
     const data = await res.json();
-    const notices = data.notices || [];
+
+    const scholarships         = data.scholarships         || [];
+    const scholarship_related  = data.scholarship_related  || [];
+    const dormitories          = data.dormitories          || [];
+    const rotc                 = data.rotc                 || [];
+    const general              = data.notices              || [];
 
     out.innerHTML = '';
-    if (!notices.length) {
-      out.innerHTML = '<div class="empty-state">추천 결과가 없습니다.</div>';
-    } else {
-      out.innerHTML = `<div class="rec-section-title">맞춤 추천 공지 (${notices.length}개)</div>`;
-      notices.forEach(n => out.appendChild(buildNoticeCard(n)));
+
+    // 신청 가능한 장학금
+    if (scholarships.length) {
+      const header = document.createElement('div');
+      header.className = 'rec-section-title';
+      header.innerHTML = `장학금 — 신청 가능한 장학금이 있어요! (${scholarships.length}개)`;
+      out.appendChild(header);
+      scholarships.forEach(n => out.appendChild(buildNoticeCard(n)));
     }
+
+    // 장학금 관련 안내
+    if (scholarship_related.length) {
+      const header = document.createElement('div');
+      header.className = 'rec-section-title';
+      header.innerHTML = `장학금 관련 안내 (${scholarship_related.length}개)`;
+      out.appendChild(header);
+      scholarship_related.forEach(n => out.appendChild(buildNoticeCard(n)));
+    }
+
+    // 기숙사
+    if (dormitories.length) {
+      const header = document.createElement('div');
+      header.className = 'rec-section-title';
+      header.innerHTML = `기숙사 (${dormitories.length}개)`;
+      out.appendChild(header);
+      dormitories.forEach(n => out.appendChild(buildNoticeCard(n)));
+    }
+
+    // ROTC
+    if (rotc.length) {
+      const header = document.createElement('div');
+      header.className = 'rec-section-title';
+      header.innerHTML = `ROTC (${rotc.length}개)`;
+      out.appendChild(header);
+      rotc.forEach(n => out.appendChild(buildNoticeCard(n)));
+    }
+
+    // 일반 추천 공지
+    if (general.length) {
+      const header = document.createElement('div');
+      header.className = 'rec-section-title';
+      header.innerHTML = `맞춤 추천 공지 (${general.length}개)`;
+      out.appendChild(header);
+      general.forEach(n => out.appendChild(buildNoticeCard(n)));
+    }
+
+    if (!scholarships.length && !scholarship_related.length && !dormitories.length && !rotc.length && !general.length) {
+      out.innerHTML = '<div class="empty-state">추천 결과가 없습니다.</div>';
+    }
+
   } catch(e) {
     out.innerHTML = `<div class="empty-state">오류: ${e.message}<br><small>FastAPI 서버가 실행 중인지 확인해주세요.</small></div>`;
   }
