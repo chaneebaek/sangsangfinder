@@ -28,7 +28,7 @@ BASE_DATE          = datetime(2026, 4, 30)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 gemini = genai.GenerativeModel(
-    "gemini-2.0-flash",
+    "gemini-2.5-flash",
     generation_config={"response_mime_type": "application/json"}
 )
 
