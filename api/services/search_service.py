@@ -9,6 +9,7 @@ import re
 from ..core.config import GEMINI_API_KEY, SEARCH_ALPHA
 from ..core.models import get_embed_model, get_vector_collection, get_index_fingerprint, load_notices_cache
 from ..core.utils import tokenize_ko
+from .feature_reranker import rerank_notices
 
 # Module-level BM25 cache (replaces @st.cache_data from app.py)
 _bm25_cache: dict[str, tuple[tuple[int, int, str], tuple]] = {}
@@ -105,6 +106,9 @@ def hybrid_search(
     top_k: int = 5,
     alpha: float = SEARCH_ALPHA,
     category_filter: str | list[str] | None = None,
+    candidate_k: int | None = None,
+    feature_rerank: bool = False,
+    profile: dict | None = None,
 ) -> list[dict]:
     model      = get_embed_model()
     collection = get_vector_collection()
@@ -115,7 +119,8 @@ def hybrid_search(
         return []
 
     q_emb     = model.encode(query).tolist()
-    n_results = min(top_k * 5, len(documents))
+    candidate_limit = max(top_k, candidate_k or top_k)
+    n_results = min(max(candidate_limit * 5, top_k * 5), len(documents))
     vr        = collection.query(
         query_embeddings=[q_emb],
         n_results=n_results,
@@ -163,7 +168,7 @@ def hybrid_search(
                 "score": round(final[did], 4),
                 "content": doc_map.get(did, ""),
             }
-        if len(seen_urls) >= top_k:
+        if len(seen_urls) >= candidate_limit:
             break
 
     score_log_rows = seen_score_ids[:5]
@@ -190,7 +195,10 @@ def hybrid_search(
             flush=True,
         )
 
-    return list(seen_urls.values())
+    candidates = list(seen_urls.values())
+    if feature_rerank:
+        return rerank_notices(candidates, profile=profile or {}, top_k=top_k)
+    return candidates[:top_k]
 
 
 def generate_llm_reply(

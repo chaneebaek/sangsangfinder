@@ -53,6 +53,9 @@ def search(req: SearchRequest):
             top_k=req.top_k,
             alpha=req.alpha,
             category_filter=req.category,
+            candidate_k=50 if req.feature_rerank else None,
+            feature_rerank=req.feature_rerank,
+            profile=req.profile,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"검색 오류: {e}")
@@ -61,7 +64,7 @@ def search(req: SearchRequest):
     reply = generate_llm_reply(
         user_query=req.query,
         results=raw_results,
-        profile={},
+        profile=req.profile,
         is_first=req.is_first,
     )
 

@@ -45,7 +45,7 @@ PINECONE_CATEGORY_MAP = {
 
 # ── 핵심 함수 ────────────────────────────────────────────────
 
-def search_rag_notices(query, category_filter="전체", top_k=5):
+def search_rag_notices(query, category_filter="전체", top_k=20, profile=None):
     try:
         pinecone_categories = (
             PINECONE_CATEGORY_MAP.get(category_filter, [category_filter])
@@ -55,6 +55,9 @@ def search_rag_notices(query, category_filter="전체", top_k=5):
             query=query,
             top_k=top_k,
             category_filter=pinecone_categories,
+            candidate_k=50,
+            feature_rerank=True,
+            profile=profile or {},
         )
     except Exception as e:
         print(f"[검색 오류] {e}")
@@ -264,8 +267,13 @@ class RecommendRequest(BaseModel):
 # ── 챗봇 API ─────────────────────────────────────────────────
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
-    results = search_rag_notices(req.query, req.category, top_k=5)
-    reply = generate_llm_reply(req.query, results, req.profile.dict(), req.is_first)
+    profile = req.profile.dict()
+    results = search_rag_notices(req.query, req.category, top_k=20, profile=profile)
+    reply = generate_llm_reply(req.query, results, profile, req.is_first)
+    reranker_warning = any(
+        ((r.get("feature_reranker") or {}).get("features") or {}).get("extraction", {}).get("llm_failed")
+        for r in results
+    )
     notices = []
     for r in results:
         notices.append({
@@ -275,7 +283,14 @@ async def chat(req: ChatRequest):
             "url":      r.get("url") or r.get("link", "#"),
             "summary":  (r.get("body") or r.get("content") or "")[:120],
         })
-    return {"reply": reply, "results": notices}
+    return {
+        "reply": reply,
+        "results": notices,
+        "reranker_warning": (
+            "LLM 연결에 실패하여 규칙 기반으로 계산한 결과입니다."
+            if reranker_warning else None
+        ),
+    }
 
 # ── 추천 API ─────────────────────────────────────────────────
 @app.post("/api/recommend")

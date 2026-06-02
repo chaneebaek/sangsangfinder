@@ -37,6 +37,11 @@ PINECONE_CACHE_PATH = os.getenv(
 EMBEDDING_DIM       = int(os.getenv("EMBEDDING_DIM", "768"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+GEMINI_API_KEY_FREE_TIER = os.getenv("GEMINI_API_KEY_FREE_TIER")
+NOTICE_FEATURE_CACHE_PATH = os.getenv(
+    "NOTICE_FEATURE_CACHE_PATH",
+    os.path.join(_BASE_DIR, "data", "notice_feature_cache.json"),
+)
 
 BOARD_LIST_URL = "https://www.hansung.ac.kr/bbs/hansung/2127/artclList.do"
 HEADERS        = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}

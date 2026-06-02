@@ -224,6 +224,16 @@ html, body {
 .ref-title { font-size:14px; font-weight:600; color:var(--text); margin-bottom:5px; }
 .ref-link { font-size:12px; color:var(--blue); text-decoration:none; font-weight:600; }
 .ref-link:hover { text-decoration:underline; }
+.system-note {
+  align-self:flex-start;
+  font-size:12px;
+  color:var(--text-sub);
+  background:rgba(255,204,0,0.12);
+  border:1px solid rgba(255,204,0,0.28);
+  border-radius:8px;
+  padding:8px 11px;
+  margin:4px 0 8px;
+}
 
 .chat-input-row {
   display:flex; gap:8px; align-items:stretch; padding:14px 16px;
@@ -1136,6 +1146,7 @@ async function sendChat() {
     const res = await callChatAPI(text, cat);
     loadEl.remove();
     appendBubble('bot', res.reply);
+    if (res.reranker_warning) appendSystemNote(res.reranker_warning);
     if (res.results && res.results.length) renderRefCards(res.results.slice(0,3));
     chatHistory.push({ role:'bot', content:res.reply, results:res.results });
   } catch(e) {
@@ -1183,6 +1194,15 @@ function appendTyping() {
   body.appendChild(el);
   scrollChatBottom();
   return el;
+}
+
+function appendSystemNote(text) {
+  const body = document.getElementById('chat-body');
+  const el = document.createElement('div');
+  el.className = 'system-note';
+  el.textContent = text;
+  body.appendChild(el);
+  scrollChatBottom();
 }
 
 function renderRefCards(results) {
