@@ -179,7 +179,7 @@ def filter_dormitory(profile):
         for d in (res.data or []):
             if d.get('end_date_type') == '명시' and d.get('end_date'):
                 if d['end_date'] < today: continue
-            if dorm_interest:
+            if dorm_interest:  # 관심 기숙사 선택했을 때만 이름 필터 적용
                 if not any(dorm in (d.get('name') or '') for dorm in dorm_interest): continue
             if gender == '남성' and d.get('male_quota') == 0: continue
             if gender == '여성' and d.get('female_quota') == 0: continue
@@ -285,65 +285,95 @@ async def recommend(req: RecommendRequest):
         try: sync_profile_to_supabase_user(p)
         except: pass
 
+    interests = p.get("interests", [])
+
+    def fmt(n):
+        return {
+            "title":    n.get("title", ""),
+            "category": n.get("category", ""),
+            "date":     (n.get("posted_at") or n.get("date") or "")[:10],
+            "url":      n.get("url") or n.get("link", "#"),
+            "summary":  (n.get("body") or "")[:120],
+        }
+
+    # ── Two-Tower 일반 추천 ────────────────────────────────────
     recs = []
     try:
         recs = two_tower_recommend(
             college=p.get("college", ""),
             track=p.get("track", ""),
             year=p.get("grade", ""),
-            interests=p.get("interests", []),
+            interests=interests,
             top_k=10,
         )
     except Exception as e:
         print(f"two_tower 오류: {e}")
 
-    extra = []
-    interests = p.get("interests", [])
+    seen = set()
+    general = []
+    for res in recs:
+        n = res.get('notice', res)
+        if not n.get("title"): continue
+        key = n.get("url") or n.get("title", "")
+        if key not in seen:
+            seen.add(key)
+            general.append(fmt(n))
+
+    # ── 장학금 섹션 ───────────────────────────────────────────
+    scholarships = []
+    scholarship_related = []
     if "장학금" in interests:
         try:
             sch, rel = filter_scholarships(p)
-            extra += sch[:5] + rel[:2]
-        except: pass
+            for n in sch:
+                if not n.get("title"): continue
+                key = n.get("url") or n.get("title", "")
+                if key not in seen:
+                    seen.add(key)
+                    scholarships.append(fmt(n))
+            # 관련 안내는 필터 결과 없어도 최신 3개 무조건
+            for n in rel[:3]:
+                if not n.get("title"): continue
+                key = n.get("url") or n.get("title", "")
+                if key not in seen:
+                    seen.add(key)
+                    scholarship_related.append(fmt(n))
+        except Exception as e:
+            print(f"장학금 필터 오류: {e}")
+
+    # ── 기숙사 섹션 ───────────────────────────────────────────
+    dormitories = []
     if "기숙사" in interests:
-        try: extra += filter_dormitory(p)[:3]
-        except: pass
-    if "ROTC" in interests and p.get("rotc_interest"):
-        try: extra += filter_rotc()[:2]
-        except: pass
+        try:
+            for n in filter_dormitory(p)[:3]:
+                if not n.get("title"): continue
+                key = n.get("url") or n.get("title", "")
+                if key not in seen:
+                    seen.add(key)
+                    dormitories.append(fmt(n))
+        except Exception as e:
+            print(f"기숙사 필터 오류: {e}")
 
-    seen = set()
-    combined = []
-    # two_tower 결과 먼저 (res['notice'] 구조)
-    for res in recs:
-        n = res.get('notice', res)  # {'notice': {...}, 'final_score': ...} 또는 그냥 dict
-        if not n.get("title"):
-            continue
-        key = n.get("url") or n.get("title", "")
-        if key not in seen:
-            seen.add(key)
-            combined.append({
-                "title":    n.get("title", ""),
-                "category": n.get("category", ""),
-                "date":     (n.get("posted_at") or n.get("date") or "")[:10],
-                "url":      n.get("url") or n.get("link", "#"),
-                "summary":  (n.get("body") or "")[:120],
-            })
-    # extra (장학금/기숙사/ROTC) 뒤에 추가
-    for n in extra:
-        if not n.get("title"):
-            continue
-        key = n.get("url") or n.get("title", "")
-        if key not in seen:
-            seen.add(key)
-            combined.append({
-                "title":    n.get("title", ""),
-                "category": n.get("category", ""),
-                "date":     (n.get("posted_at") or n.get("date") or "")[:10],
-                "url":      n.get("url") or n.get("link", "#"),
-                "summary":  (n.get("body") or "")[:120],
-            })
+    # ── ROTC 섹션 (rotc_interest 무관하게 관심사에 ROTC 있으면 표시) ──
+    rotc = []
+    if "ROTC" in interests:
+        try:
+            for n in filter_rotc()[:2]:
+                if not n.get("title"): continue
+                key = n.get("url") or n.get("title", "")
+                if key not in seen:
+                    seen.add(key)
+                    rotc.append(fmt(n))
+        except Exception as e:
+            print(f"ROTC 필터 오류: {e}")
 
-    return {"notices": combined[:15]}
+    return {
+        "scholarships": scholarships,           # is_application=True 장학금
+        "scholarship_related": scholarship_related,  # 장학금 관련 안내
+        "dormitories": dormitories,
+        "rotc": rotc,
+        "notices": general[:10],
+    }
 
 
 # ── 프로필 동기화 API ─────────────────────────────────────────
