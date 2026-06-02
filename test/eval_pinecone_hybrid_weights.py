@@ -221,6 +221,12 @@ def print_miss_samples(rows: list[dict], limit: int) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--k", type=int, default=5, help="Top-k for retrieval metrics.")
+    parser.add_argument("--alpha", type=float, default=0.5, help="Vector weight to evaluate by default.")
+    parser.add_argument(
+        "--grid",
+        action="store_true",
+        help="Evaluate an alpha grid instead of only --alpha.",
+    )
     parser.add_argument("--step", type=float, default=0.1, help="Alpha grid step.")
     parser.add_argument(
         "--no-extremes",
@@ -235,6 +241,9 @@ def main() -> None:
         help="Continue even if some ground-truth URLs are missing from Pinecone.",
     )
     args = parser.parse_args()
+
+    if not 0.0 <= args.alpha <= 1.0:
+        raise SystemExit("--alpha must be between 0.0 and 1.0")
 
     corpus = load_json(CORPUS_PATH)
     qa_list = load_jsonl(QA_PATH)
@@ -261,7 +270,8 @@ def main() -> None:
 
     all_results = []
     rows_by_alpha = {}
-    for alpha in alpha_values(args.step, include_extremes=not args.no_extremes):
+    alphas = alpha_values(args.step, include_extremes=not args.no_extremes) if args.grid else [args.alpha]
+    for alpha in alphas:
         print(f"\nEvaluating alpha={alpha:.1f} (keyword:vector={format_ratio(alpha)})...", flush=True)
         rows = evaluate_alpha(examples, alpha, args.k)
         scores = compute_scores(rows, args.k)
