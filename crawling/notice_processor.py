@@ -93,6 +93,7 @@ def calc_notice_score(notice: dict) -> float:
 def classify_with_gemini(title: str, body: str, max_retry: int = 3) -> dict:
     prompt = f"""
 한성대학교 공지사항을 아래 카테고리 중 하나로 분류하고, 세부 유형도 분류해.
+반드시 아래 '카테고리' 목록에 있는 정확한 단어만 사용해.
 
 카테고리: {json.dumps(VALID_CATEGORIES, ensure_ascii=False)}
 카테고리별 세부 유형: {json.dumps(CATEGORY_TYPE_MAP, ensure_ascii=False)}
@@ -105,13 +106,28 @@ def classify_with_gemini(title: str, body: str, max_retry: int = 3) -> dict:
 """
     for attempt in range(max_retry):
         try:
-            res    = gemini.generate_content(prompt)
-            result = json.loads(res.text)
-            if result.get('category') in VALID_CATEGORIES:
+            res      = gemini.generate_content(prompt)
+            raw_text = res.text.strip()
+
+            # 마크다운 찌꺼기 제거
+            if raw_text.startswith("```"):
+                raw_text = re.sub(r"^```(?:json)?\s*", "", raw_text)
+                raw_text = re.sub(r"\s*```$", "", raw_text).strip()
+
+            result   = json.loads(raw_text)
+            category = result.get('category', '').strip()
+
+            if category in VALID_CATEGORIES:
                 return result
+            else:
+                print(f"  [디버깅] 목록에 없는 카테고리 반환됨: '{category}' (시도 {attempt+1}/{max_retry})")
+
+        except json.JSONDecodeError as e:
+            print(f"  [디버깅] JSON 파싱 실패 (시도 {attempt+1}/{max_retry}): {e} | 원본: {res.text[:100]}")
         except Exception as e:
             print(f"  Gemini 분류 실패 (시도 {attempt+1}/{max_retry}): {e}")
-            time.sleep(3)
+        time.sleep(3)
+
     return {"category": "기타", "category_type": []}
 
 # ── 장학금 파싱 ───────────────────────────────────────────────
