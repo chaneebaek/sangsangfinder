@@ -86,6 +86,31 @@ def ensure_realtime_publication() -> None:
             logger.info("Realtime publication 확인 생략/실패: %s", exc)
 
 
+def ensure_notification_delivery_schema() -> None:
+    """Best-effort: allow one delivery per notice/user/channel/category."""
+    db_url = os.getenv("SUPABASE_DB_URL")
+    if not db_url:
+        return
+    try:
+        import psycopg
+
+        with psycopg.connect(db_url, connect_timeout=10) as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    alter table public.notification_deliveries
+                        add column if not exists category text not null default '';
+                    alter table public.notification_deliveries
+                        drop constraint if exists notification_deliveries_notice_db_id_user_id_channel_key;
+                    create unique index if not exists idx_notification_deliveries_notice_user_channel_category
+                        on public.notification_deliveries (notice_db_id, user_id, channel, category);
+                    """
+                )
+            conn.commit()
+    except Exception as exc:
+        logger.info("notification_deliveries 카테고리 스키마 확인 생략/실패: %s", exc)
+
+
 def load_recent_notices(client, lookback_minutes: int, limit: int) -> list[dict[str, Any]]:
     since = datetime.now(timezone.utc) - timedelta(minutes=lookback_minutes)
     if client is None:
@@ -308,7 +333,7 @@ def get_notification_targets(notices: list[dict], users: list[dict] | None = Non
     return targets
 
 
-def delivery_exists(client, notice_db_id: int, user_id: str, channel: str) -> bool:
+def delivery_exists(client, notice_db_id: int, user_id: str, channel: str, category: str) -> bool:
     if client is None:
         import psycopg
 
@@ -318,10 +343,14 @@ def delivery_exists(client, notice_db_id: int, user_id: str, channel: str) -> bo
                     """
                     select 1
                     from public.notification_deliveries
-                    where notice_db_id = %s and user_id = %s and channel = %s and status = 'sent'
+                    where notice_db_id = %s
+                      and user_id = %s
+                      and channel = %s
+                      and category = %s
+                      and status = 'sent'
                     limit 1
                     """,
-                    (notice_db_id, user_id, channel),
+                    (notice_db_id, user_id, channel, category or ""),
                 )
                 return cur.fetchone() is not None
 
@@ -331,6 +360,7 @@ def delivery_exists(client, notice_db_id: int, user_id: str, channel: str) -> bo
         .eq("notice_db_id", notice_db_id)
         .eq("user_id", user_id)
         .eq("channel", channel)
+        .eq("category", category or "")
         .eq("status", "sent")
         .limit(1)
         .execute()
@@ -354,11 +384,11 @@ def record_delivery(
                 cur.execute(
                     """
                     insert into public.notification_deliveries (
-                        notice_db_id, notice_id, user_id, channel, status,
+                        notice_db_id, notice_id, user_id, channel, category, status,
                         error, sent_at, updated_at
                     )
-                    values (%s, %s, %s, %s, %s, %s, %s, %s)
-                    on conflict (notice_db_id, user_id, channel) do update set
+                    values (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    on conflict (notice_db_id, user_id, channel, category) do update set
                         status = excluded.status,
                         error = excluded.error,
                         sent_at = excluded.sent_at,
@@ -369,6 +399,7 @@ def record_delivery(
                         target.get("notice_id"),
                         target["user_id"],
                         channel,
+                        target.get("category") or "",
                         status,
                         error,
                         now if status == "sent" else None,
@@ -383,6 +414,7 @@ def record_delivery(
         "notice_id": target.get("notice_id"),
         "user_id": target["user_id"],
         "channel": channel,
+        "category": target.get("category") or "",
         "status": status,
         "error": error,
         "sent_at": now if status == "sent" else None,
@@ -390,7 +422,7 @@ def record_delivery(
     }
     client.table("notification_deliveries").upsert(
         row,
-        on_conflict="notice_db_id,user_id,channel",
+        on_conflict="notice_db_id,user_id,channel,category",
     ).execute()
 
 
@@ -559,7 +591,7 @@ def process_notices_for_notifications(
         phone = target.get("phone")
         if not notice_db_id or not user_id or not phone:
             continue
-        if delivery_exists(client, notice_db_id, user_id, args.channel):
+        if delivery_exists(client, notice_db_id, user_id, args.channel, target.get("category") or ""):
             continue
 
         message = format_message(target)
@@ -591,6 +623,7 @@ def process_notices_for_notifications(
 
 def run_once(args: argparse.Namespace) -> int:
     client = get_supabase_client()
+    ensure_notification_delivery_schema()
     notices = load_recent_notices(client, args.lookback_minutes, args.limit)
     return process_notices_for_notifications(args, client, notices, "polling")
 
@@ -620,6 +653,7 @@ async def run_realtime_daemon(args: argparse.Namespace) -> None:
         return
 
     ensure_realtime_publication()
+    ensure_notification_delivery_schema()
     realtime_url, realtime_key = realtime_config
 
     while True:

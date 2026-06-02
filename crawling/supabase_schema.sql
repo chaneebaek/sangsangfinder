@@ -49,13 +49,20 @@ create table if not exists notification_deliveries (
     notice_id text,
     user_id text not null references users(user_id) on delete cascade,
     channel text not null default 'imessage',
+    category text not null default '',
     status text not null default 'pending',
     error text,
     sent_at timestamptz,
     created_at timestamptz not null default now(),
     updated_at timestamptz not null default now(),
-    unique (notice_db_id, user_id, channel)
+    unique (notice_db_id, user_id, channel, category)
 );
+
+alter table notification_deliveries add column if not exists category text not null default '';
+alter table notification_deliveries
+    drop constraint if exists notification_deliveries_notice_db_id_user_id_channel_key;
+create unique index if not exists idx_notification_deliveries_notice_user_channel_category
+    on notification_deliveries (notice_db_id, user_id, channel, category);
 
 create index if not exists idx_notification_deliveries_status
     on notification_deliveries (status, created_at desc);
