@@ -7,8 +7,10 @@ the Transaction pooler URI with sslmode=require.
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+import time
 from datetime import date, datetime
 from typing import Any
 
@@ -17,6 +19,7 @@ from psycopg.types.json import Jsonb
 
 SOURCE = "hansung"
 DB_URL_ENV = "SUPABASE_DB_URL"
+logger = logging.getLogger(__name__)
 
 
 CREATE_NOTICES_SQL = """
@@ -142,13 +145,56 @@ def _db_url() -> str:
     return value
 
 
+def _env_int(name: str, default: int, minimum: int = 1) -> int:
+    value = os.getenv(name)
+    if not value:
+        return default
+    try:
+        return max(int(value), minimum)
+    except ValueError:
+        logger.warning("%s must be an integer; using default %d", name, default)
+        return default
+
+
+def _env_float(name: str, default: float, minimum: float = 0.0) -> float:
+    value = os.getenv(name)
+    if not value:
+        return default
+    try:
+        return max(float(value), minimum)
+    except ValueError:
+        logger.warning("%s must be a number; using default %.1f", name, default)
+        return default
+
+
 def _connect() -> psycopg.Connection:
-    return psycopg.connect(
-        _db_url(),
-        autocommit=False,
-        connect_timeout=10,
-        prepare_threshold=None,
-    )
+    attempts = _env_int("SUPABASE_DB_CONNECT_RETRIES", 3)
+    timeout = _env_int("SUPABASE_DB_CONNECT_TIMEOUT", 20)
+    retry_delay = _env_float("SUPABASE_DB_CONNECT_RETRY_DELAY", 5.0)
+    last_error: Exception | None = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            return psycopg.connect(
+                _db_url(),
+                autocommit=False,
+                connect_timeout=timeout,
+                prepare_threshold=None,
+            )
+        except psycopg.OperationalError as exc:
+            last_error = exc
+            if attempt >= attempts:
+                break
+            logger.warning(
+                "Supabase DB connection attempt %d/%d failed: %s. Retrying in %.1fs.",
+                attempt,
+                attempts,
+                exc,
+                retry_delay,
+            )
+            time.sleep(retry_delay)
+
+    raise last_error or RuntimeError("Supabase DB connection failed")
 
 
 def ensure_schema() -> None:
