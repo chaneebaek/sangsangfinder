@@ -240,14 +240,16 @@ html, body {
   background:var(--surface); border-radius:var(--radius);
   border:1px solid var(--border); box-shadow:var(--shadow-sm);
 }
-.chat-cat-select {
-  padding:10px 10px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
-  font-size:13px; font-family:var(--font); color:var(--text); background:var(--bg);
-  outline:none; cursor:pointer; transition:border-color var(--tr); appearance:none;
+.chat-mascot-strip {
+  display:flex; align-items:center; justify-content:center;
+  flex:0 0 42px; padding:0;
+  border:none; background:transparent;
 }
-.chat-cat-select:focus { border-color:var(--blue); }
+.chat-mascot-strip img {
+  width:34px; height:34px; object-fit:contain; flex-shrink:0;
+}
 .chat-text-input {
-  flex:1; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
+  flex:1; min-width:0; padding:10px 14px; border:1.5px solid var(--border); border-radius:var(--rad-xs);
   font-size:14px; font-family:var(--font); color:var(--text); background:var(--surface);
   outline:none; transition:border-color var(--tr), box-shadow var(--tr);
 }
@@ -547,12 +549,9 @@ html, body {
       </div>
 
       <div class="chat-input-row">
-        <select class="chat-cat-select" id="chat-cat">
-          <option value="전체">전체</option>
-          <option>취업/채용</option><option>학사행정</option><option>학생활동/비교과</option>
-          <option>대외활동</option><option>공모전/경진대회</option><option>국제교류</option>
-          <option>창업</option><option>장학금</option><option>기숙사</option><option>ROTC</option>
-        </select>
+        <div class="chat-mascot-strip" aria-hidden="true">
+          <img src="images/icon_상상부기.png" alt=""/>
+        </div>
         <input type="text" class="chat-text-input" id="chat-input" placeholder="무엇이 궁금하세요?" onkeydown="if(event.key==='Enter')sendChat()"/>
         <button class="chat-send-btn" id="chat-send-btn" onclick="sendChat()">전송</button>
       </div>
@@ -1124,7 +1123,7 @@ async function sendChat() {
   const input = document.getElementById('chat-input');
   const text = input.value.trim();
   if (!text) return;
-  const cat = document.getElementById('chat-cat').value;
+  const cat = '전체';
 
   input.value = '';
   document.getElementById('chat-send-btn').disabled = true;
