@@ -234,6 +234,13 @@ app.add_middleware(
 app.mount("/images", StaticFiles(directory=os.path.join(_BASE, "images")), name="images")
 app.mount("/static", StaticFiles(directory=_BASE), name="static")
 
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return FileResponse(
+        os.path.join(_BASE, "images", "icon_상상부기.png"),
+        media_type="image/png",
+    )
+
 @app.get("/")
 def root():
     return FileResponse(os.path.join(_BASE, "sangsang_finder.html"))

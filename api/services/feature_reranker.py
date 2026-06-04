@@ -14,9 +14,18 @@ import math
 import os
 import re
 from datetime import date, datetime
+from time import perf_counter
 from typing import Any
 
-from ..core.config import GEMINI_API_KEY_PAID_TIER, GEMINI_FEATURE_TIMEOUT_SECONDS, NOTICE_FEATURE_CACHE_PATH
+from ..core.config import (
+    GEMINI_API_KEY_PAID_TIER,
+    GEMINI_FEATURE_BATCH_SIZE,
+    GEMINI_FEATURE_EXTRACTION_ENABLED,
+    GEMINI_FEATURE_MODEL,
+    GEMINI_FEATURE_TIMEOUT_SECONDS,
+    NOTICE_FEATURE_CACHE_PATH,
+)
+from .gemini_rest import generate_content_text
 
 AUDIENCES = {"학부생", "교직원", "졸업생", "일반인", "기타"}
 DEFAULT_FEATURES: dict[str, Any] = {
@@ -46,6 +55,9 @@ def rerank_notices(
     profile: dict[str, Any] | None = None,
     top_k: int = 20,
     today: date | None = None,
+    rerank_window: int = 20,
+    relevance_floor_ratio: float = 0.85,
+    max_feature_boost: float = 0.06,
 ) -> list[dict]:
     """Return the top-k notices after feature soft boosts."""
     if not notices:
@@ -55,6 +67,9 @@ def rerank_notices(
     profile = profile or {}
     features_by_key = extract_notice_features(notices)
     max_recency_date = _max_posted_date(notices)
+    top_base_score = max((_safe_float(notice.get("score"), default=0.0) for notice in notices), default=0.0)
+    relevance_floor = top_base_score * _bounded(relevance_floor_ratio, 0.0, 1.0)
+    max_feature_boost = _bounded(max_feature_boost, 0.0, 1.0)
 
     reranked: list[dict] = []
     for idx, notice in enumerate(notices):
@@ -63,7 +78,9 @@ def rerank_notices(
         base_score = _safe_float(notice.get("score"), default=0.0)
         boost_parts = _score_boosts(notice, features, profile, today, max_recency_date)
         signals = _score_signals(notice, features, today, max_recency_date)
-        feature_boost = sum(boost_parts.values())
+        raw_feature_boost = sum(boost_parts.values())
+        feature_eligible = idx < rerank_window and base_score >= relevance_floor
+        feature_boost = min(raw_feature_boost, max_feature_boost) if feature_eligible else 0.0
         rerank_score = base_score * (1.0 + feature_boost)
 
         item = dict(notice)
@@ -73,7 +90,12 @@ def rerank_notices(
             "features": features,
             "signals": signals,
             "boosts": {k: round(v, 6) for k, v in boost_parts.items()},
+            "raw_feature_boost": round(raw_feature_boost, 6),
             "feature_boost": round(feature_boost, 6),
+            "feature_eligible": feature_eligible,
+            "relevance_floor": round(relevance_floor, 6),
+            "relevance_floor_ratio": round(relevance_floor_ratio, 6),
+            "max_feature_boost": round(max_feature_boost, 6),
             "rerank_score": round(rerank_score, 6),
             "original_rank": idx + 1,
         }
@@ -89,15 +111,36 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
     cache = _load_cache()
     result: dict[str, dict[str, Any]] = {}
     missing: list[dict] = []
+    cache_hits = 0
+    stale_failed = 0
 
     for notice in notices:
         key = _notice_key(notice)
         content_hash = _content_hash(notice)
         cached = cache.get(key)
         if cached and cached.get("content_hash") == content_hash:
-            result[key] = _normalize_features(cached.get("features"))
+            cached_features = _normalize_features(cached.get("features"))
+            cached_failed = bool((cached_features.get("extraction") or {}).get("llm_failed"))
+            should_retry_failed_cache = (
+                cached_failed
+                and GEMINI_FEATURE_EXTRACTION_ENABLED
+                and bool(GEMINI_API_KEY_PAID_TIER)
+            )
+            if should_retry_failed_cache:
+                stale_failed += 1
+                missing.append(notice)
+            else:
+                cache_hits += 1
+                result[key] = cached_features
         else:
             missing.append(notice)
+
+    print(
+        "[feature-reranker] feature 조회: "
+        f"total={len(notices)} cache_hit={cache_hits} "
+        f"missing={len(missing)} stale_failed_retry={stale_failed}",
+        flush=True,
+    )
 
     if missing:
         extracted = _extract_with_gemini(missing)
@@ -120,34 +163,53 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
 
 
 def _extract_with_gemini(notices: list[dict]) -> dict[str, dict[str, Any]]:
-    if not GEMINI_API_KEY_PAID_TIER:
-        return {_notice_key(notice): _fallback_extract(notice, llm_failed=True) for notice in notices}
-
-    try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=GEMINI_API_KEY_PAID_TIER)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-    except Exception as exc:
-        print(f"[feature-reranker] Gemini 로드 실패, fallback 사용: {exc}", flush=True)
+    if not GEMINI_FEATURE_EXTRACTION_ENABLED or not GEMINI_API_KEY_PAID_TIER:
+        print(
+            "[feature-reranker] Gemini feature 추출 비활성/키 없음, fallback 사용: "
+            f"count={len(notices)} enabled={GEMINI_FEATURE_EXTRACTION_ENABLED}",
+            flush=True,
+        )
         return {_notice_key(notice): _fallback_extract(notice, llm_failed=True) for notice in notices}
 
     extracted: dict[str, dict[str, Any]] = {}
-    for batch in _chunks(notices, 8):
+    batches = list(_chunks(notices, GEMINI_FEATURE_BATCH_SIZE))
+    print(
+        "[feature-reranker] Gemini feature 추출 시작: "
+        f"count={len(notices)} batches={len(batches)} "
+        f"batch_size={GEMINI_FEATURE_BATCH_SIZE} model={GEMINI_FEATURE_MODEL} "
+        f"timeout={GEMINI_FEATURE_TIMEOUT_SECONDS}s",
+        flush=True,
+    )
+    for batch_index, batch in enumerate(batches):
         prompt = _build_extraction_prompt(batch)
         try:
-            response = model.generate_content(
-                prompt,
-                generation_config={
-                    "temperature": 0,
-                    "response_mime_type": "application/json",
-                },
-                request_options={"timeout": GEMINI_FEATURE_TIMEOUT_SECONDS},
+            batch_started_at = perf_counter()
+            response_text = generate_content_text(
+                api_key=GEMINI_API_KEY_PAID_TIER,
+                prompt=prompt,
+                model=GEMINI_FEATURE_MODEL,
+                timeout=GEMINI_FEATURE_TIMEOUT_SECONDS,
+                temperature=0,
+                response_mime_type="application/json",
             )
-            rows = _parse_json_array(response.text)
+            rows = _parse_json_array(response_text)
+            elapsed_ms = (perf_counter() - batch_started_at) * 1000
+            print(
+                "[feature-reranker] Gemini feature 추출 성공: "
+                f"batch={batch_index + 1}/{len(batches)} rows={len(rows)} "
+                f"elapsed_ms={elapsed_ms:.1f}",
+                flush=True,
+            )
         except Exception as exc:
-            print(f"[feature-reranker] Gemini 추출 실패, fallback 사용: {exc}", flush=True)
-            rows = []
+            print(
+                "[feature-reranker] Gemini feature 추출 실패, 남은 batch fallback 사용: "
+                f"batch={batch_index + 1}/{len(batches)} error={exc}",
+                flush=True,
+            )
+            for remaining_batch in batches[batch_index:]:
+                for notice in remaining_batch:
+                    extracted[_notice_key(notice)] = _fallback_extract(notice, llm_failed=True)
+            break
 
         row_map = {str(row.get("id")): row for row in rows if isinstance(row, dict)}
         for notice in batch:

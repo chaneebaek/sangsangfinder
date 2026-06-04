@@ -8,10 +8,17 @@ import json
 import re
 from time import perf_counter
 
-from ..core.config import GEMINI_API_KEY, GEMINI_REPLY_TIMEOUT_SECONDS, SEARCH_ALPHA
+from ..core.config import (
+    GEMINI_API_KEY,
+    GEMINI_API_KEY_PAID_TIER,
+    GEMINI_REPLY_TIMEOUT_SECONDS,
+    GEMINI_ROUTER_TIMEOUT_SECONDS,
+    SEARCH_ALPHA,
+)
 from ..core.models import get_embed_model, get_vector_collection, get_index_fingerprint, load_notices_cache
 from ..core.utils import tokenize_ko
 from .feature_reranker import rerank_notices
+from .gemini_rest import generate_content_text
 
 # Module-level BM25 cache (replaces @st.cache_data from app.py)
 _bm25_cache: dict[str, tuple[tuple[int, int, str], tuple]] = {}
@@ -22,11 +29,23 @@ ROUTED_ALPHA = {
     "procedural": 0.3,
     "conditional": 0.5,
 }
-ROUTING_CONFIDENCE_THRESHOLD = 0.90
+ROUTING_CONFIDENCE_THRESHOLD = 0.80
 ROUTING_SCORE_GAP_THRESHOLD = 0.08
-ROUTING_RERANK_SCORE_THRESHOLD = 0.08
-PROCEDURAL_KEYWORDS = ("신청방법", "신청 방법", "절차", "제출서류", "제출 서류", "링크", "종합정보시스템", "지원방법", "지원 방법")
 CONDITIONAL_KEYWORDS = ("대상", "제외", "자격", "조건", "유의사항", "유의 사항", "단,", "단 ", "경우", "해당", "가능", "불가")
+PROCEDURAL_KEYWORDS = ("신청방법", "신청 방법", "신청", "접수", "제출", "제출서류", "제출 서류", "절차", "링크", "양식", "첨부", "종합정보시스템")
+FACTUAL_KEYWORDS = ("기간", "일시", "일정", "마감", "장소", "금액", "인원", "시간", "발표", "확인", "날짜")
+QUERY_STOPWORDS = {
+    "언제", "어디", "어떻게", "무엇", "가능", "신청", "방법", "기간", "마감", "장소", "대상", "조건",
+    "알려줘", "인가요", "하나요", "되나요", "있나요", "어떤", "이후", "이전", "관련", "공지",
+}
+QUERY_EXPANSIONS = {
+    "종정시": "종합정보시스템",
+    "비교과": "비교과 프로그램",
+    "장학": "장학금",
+    "기숙": "기숙사",
+    "유예": "학사학위취득 유예",
+    "취소": "취소 신청",
+}
 
 
 def _category_filter_key(category_filter: str | list[str] | None) -> str:
@@ -155,6 +174,62 @@ def _heuristic_intent(query: str) -> tuple[str, float]:
     return "기타", 0.70
 
 
+def _dedupe_keep_order(values: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for value in values:
+        cleaned = str(value or "").strip()
+        if not cleaned or cleaned in seen:
+            continue
+        seen.add(cleaned)
+        result.append(cleaned)
+    return result
+
+
+def _query_terms(query: str) -> list[str]:
+    terms = re.findall(r"[가-힣A-Za-z0-9]{2,}", query or "")
+    return _dedupe_keep_order([term for term in terms if term not in QUERY_STOPWORDS])
+
+
+def _expanded_terms(query: str) -> list[str]:
+    expanded = []
+    for src, dst in QUERY_EXPANSIONS.items():
+        if src in (query or ""):
+            expanded.append(dst)
+    return _dedupe_keep_order(expanded)
+
+
+def _section_targets_for_intent(intent: str) -> list[str]:
+    if intent == "procedural":
+        return list(PROCEDURAL_KEYWORDS)
+    if intent == "factual":
+        return list(FACTUAL_KEYWORDS)
+    if intent == "conditional":
+        return list(CONDITIONAL_KEYWORDS)
+    return []
+
+
+def _build_query_features(query: str, rewritten: str, intent: str) -> dict:
+    source_text = " ".join([query or "", rewritten or ""])
+    must_keep_terms = _query_terms(query)
+    expanded_terms = _expanded_terms(source_text)
+    time_terms = re.findall(r"\d{4}\s*년|\d{1,2}\s*월|\d{1,2}\s*일|[12]학기|여름|겨울|하계|동계", source_text)
+    return {
+        "must_keep_terms": must_keep_terms,
+        "expanded_terms": expanded_terms,
+        "entities": _dedupe_keep_order(must_keep_terms[:8] + expanded_terms),
+        "time_terms": _dedupe_keep_order(time_terms),
+        "section_targets": _section_targets_for_intent(intent),
+    }
+
+
+def _build_search_query(original: str, rewritten: str, features: dict) -> str:
+    terms = [original, rewritten]
+    terms.extend(features.get("must_keep_terms", []))
+    terms.extend(features.get("expanded_terms", []))
+    return " ".join(_dedupe_keep_order([term for term in terms if term]))
+
+
 def _extract_json_object(text: str) -> dict | None:
     if not text:
         return None
@@ -172,20 +247,18 @@ def _route_query_with_gemini(query: str) -> dict:
     if not GEMINI_API_KEY:
         normalized = _normalize_user_query(query)
         intent, confidence = _heuristic_intent(normalized)
+        features = _build_query_features(query, normalized, intent)
         return {
             "original_query": query,
-            "search_query": normalized,
+            "search_query": _build_search_query(query, normalized, features),
             "is_user_short": _looks_like_user_short(query),
             "intent": intent,
             "confidence": confidence,
             "method": "heuristic",
+            "features": features,
         }
 
     try:
-        import google.generativeai as genai
-
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
         prompt = f"""너는 한성대학교 공지 검색 쿼리 라우터다.
 사용자 질문이 짧은 구어체(user_short)이면 생략된 목적어를 복원하고 오타/약어/구어체를 표준 검색 질의로 정규화하라.
 최종 의도는 factual, procedural, conditional, 기타 중 하나로 분류하라.
@@ -195,26 +268,36 @@ JSON만 반환:
   "is_user_short": true/false,
   "rewritten_query": "검색에 사용할 한국어 질의",
   "intent": "factual|procedural|conditional|기타",
-  "confidence": 0.0
+  "confidence": 0.0,
+  "must_keep_terms": ["원문에서 보존할 고유명사/약어/프로그램명"],
+  "expanded_terms": ["검색 recall을 높일 확장어"],
+  "entities": ["프로그램명, 부서명, 장학금명 등"],
+  "time_terms": ["연도, 학기, 월, 날짜 표현"],
+  "section_targets": ["신청방법, 기간, 대상처럼 본문에서 찾아야 할 섹션 힌트"]
 }}
 
 사용자 질문: {query}"""
-        response = model.generate_content(
-            prompt,
-            generation_config={"temperature": 0, "response_mime_type": "application/json"},
+        response_text = generate_content_text(
+            api_key=GEMINI_API_KEY,
+            prompt=prompt,
+            timeout=GEMINI_ROUTER_TIMEOUT_SECONDS,
+            temperature=0,
+            response_mime_type="application/json",
         )
-        parsed = _extract_json_object(response.text) or {}
+        parsed = _extract_json_object(response_text) or {}
     except Exception as exc:
         print(f"[query-router] Gemini 분류 실패, heuristic 사용: {exc}", flush=True)
         normalized = _normalize_user_query(query)
         intent, confidence = _heuristic_intent(normalized)
+        features = _build_query_features(query, normalized, intent)
         return {
             "original_query": query,
-            "search_query": normalized,
+            "search_query": _build_search_query(query, normalized, features),
             "is_user_short": _looks_like_user_short(query),
             "intent": intent,
             "confidence": confidence,
             "method": "heuristic_fallback",
+            "features": features,
         }
 
     intent = str(parsed.get("intent") or "기타").strip()
@@ -225,13 +308,26 @@ JSON만 반환:
         confidence = float(parsed.get("confidence", 0.0))
     except (TypeError, ValueError):
         confidence = 0.0
+    parsed_features = {
+        "must_keep_terms": parsed.get("must_keep_terms") if isinstance(parsed.get("must_keep_terms"), list) else [],
+        "expanded_terms": parsed.get("expanded_terms") if isinstance(parsed.get("expanded_terms"), list) else [],
+        "entities": parsed.get("entities") if isinstance(parsed.get("entities"), list) else [],
+        "time_terms": parsed.get("time_terms") if isinstance(parsed.get("time_terms"), list) else [],
+        "section_targets": parsed.get("section_targets") if isinstance(parsed.get("section_targets"), list) else [],
+    }
+    heuristic_features = _build_query_features(query, rewritten, intent)
+    features = {
+        key: _dedupe_keep_order([*heuristic_features.get(key, []), *parsed_features.get(key, [])])
+        for key in ("must_keep_terms", "expanded_terms", "entities", "time_terms", "section_targets")
+    }
     return {
         "original_query": query,
-        "search_query": rewritten,
+        "search_query": _build_search_query(query, rewritten, features),
         "is_user_short": bool(parsed.get("is_user_short", _looks_like_user_short(query))),
         "intent": intent,
         "confidence": max(0.0, min(1.0, confidence)),
         "method": "gemini",
+        "features": features,
     }
 
 
@@ -247,10 +343,6 @@ def _safe_float(value: object, default: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return default
-
-
-def _contains_number_or_date(text: str) -> bool:
-    return bool(re.search(r"\d{1,4}([./:-]\d{1,2})?|\d+\s*(원|만원|명|점|시|분|일|월|년)", text or ""))
 
 
 def _keyword_boost(text: str, keywords: tuple[str, ...], weight: float) -> float:
@@ -270,72 +362,124 @@ def _conditional_match_score(query: str, text: str) -> float:
     return min(0.12, overlap * 0.04)
 
 
+def _term_hit_count(text: str, terms: list[str]) -> int:
+    return sum(1 for term in terms if term and term in text)
+
+
+def _feature_bonus_cap(intent: str) -> float:
+    if intent == "procedural":
+        return 0.21
+    if intent == "conditional":
+        return 0.13
+    return 0.18
+
+
+def _score_query_features(item: dict, route: dict) -> tuple[float, dict[str, float]]:
+    features = route.get("features") or {}
+    intent = route.get("intent")
+    title = str(item.get("title") or "")
+    content = str(item.get("content") or item.get("body") or "")
+    category = str(item.get("category") or "")
+    text = " ".join([title, content, category])
+
+    entity_hits = _term_hit_count(title, features.get("entities", []))
+    body_hits = _term_hit_count(text, features.get("must_keep_terms", []))
+    expanded_hits = _term_hit_count(text, features.get("expanded_terms", []))
+    time_hits = _term_hit_count(text, features.get("time_terms", []))
+    section_hits = _term_hit_count(text, features.get("section_targets", []))
+
+    parts = {
+        "title_entity": min(entity_hits * 0.025, 0.075),
+        "body_exact": min(body_hits * 0.010, 0.050),
+        "expanded": min(expanded_hits * 0.012, 0.036),
+        "time": min(time_hits * 0.015, 0.045),
+        "section": min(section_hits * 0.012, 0.060),
+    }
+
+    if intent == "procedural":
+        parts["intent_section"] = min(section_hits * 0.018, 0.120)
+    elif intent == "factual":
+        parts["intent_section"] = min((section_hits + time_hits) * 0.016, 0.080)
+    elif intent == "conditional":
+        condition_score = _conditional_match_score(route.get("search_query") or route.get("original_query") or "", text)
+        parts["intent_section"] = min(section_hits * 0.020 + condition_score, 0.060)
+    else:
+        parts["intent_section"] = 0.0
+
+    bonus = min(sum(parts.values()), _feature_bonus_cap(str(intent)))
+    return bonus, {key: round(value, 6) for key, value in parts.items() if value > 0}
+
+
 def _apply_intent_boosts(candidates: list[dict], route: dict, meta: dict | None = None) -> list[dict]:
     intent = route.get("intent")
     query = route.get("search_query") or route.get("original_query") or ""
-    meta = meta or {}
-    recency_scores = meta.get("recency_scores", {})
     boosted: list[dict] = []
     for item in candidates:
         row = dict(item)
         text = " ".join(str(row.get(key, "")) for key in ("title", "content", "category"))
-        boost = 0.0
-        boost_parts: dict[str, float] = {}
+        bonus, boost_parts = _score_query_features(row, route)
 
-        if intent == "factual":
-            recency_boost = 0.06 * _safe_float(row.get("_recency_score", recency_scores.get(row.get("_id"))), 0.0)
-            numeric_boost = 0.08 if _contains_number_or_date(text) else 0.0
-            boost += recency_boost + numeric_boost
-            boost_parts = {"routing_recency": recency_boost, "routing_numeric_date": numeric_boost}
-        elif intent == "procedural":
-            procedural_boost = _keyword_boost(text, PROCEDURAL_KEYWORDS, 0.05)
-            boost += procedural_boost
-            boost_parts = {"routing_procedural_keyword": procedural_boost}
-        elif intent == "conditional":
+        if (route.get("is_user_short") or intent == "conditional") and intent == "conditional":
             eligibility_boost = _keyword_boost(text, CONDITIONAL_KEYWORDS, 0.07)
             logic_boost = _conditional_match_score(query, text)
-            boost += eligibility_boost + logic_boost
-            boost_parts = {"routing_eligibility_keyword": eligibility_boost, "routing_condition_match": logic_boost}
+            bonus = min(bonus + eligibility_boost + logic_boost, _feature_bonus_cap(str(intent)))
+            boost_parts["routing_eligibility_keyword"] = round(eligibility_boost, 6)
+            boost_parts["routing_condition_match"] = round(logic_boost, 6)
 
         base_score = _safe_float(row.get("score"), 0.0)
-        row["score"] = round(base_score * (1.0 + boost), 6)
+        row["score"] = round(base_score + bonus, 6)
         row["query_routing_boost"] = {
             "intent": intent,
             "base_score": round(base_score, 6),
-            "boost": round(boost, 6),
-            "parts": {k: round(v, 6) for k, v in boost_parts.items()},
+            "bonus": round(bonus, 6),
+            "parts": boost_parts,
         }
         boosted.append(row)
     boosted.sort(key=lambda x: x.get("score", 0.0), reverse=True)
     return boosted
 
 
-def _rrf_merge(candidate_lists: list[list[dict]], top_k: int, k: int = 60) -> list[dict]:
+def _feature_union_candidates(
+    baseline: list[dict],
+    routed: list[dict],
+) -> list[dict]:
     merged: dict[str, dict] = {}
-    for rows in candidate_lists:
+
+    for source, rows in (("baseline", baseline), ("routed", routed)):
         for rank, item in enumerate(rows, start=1):
-            key = item.get("url") or item.get("_id") or item.get("title")
+            key = str(item.get("url") or item.get("_id") or item.get("title") or "")
             if not key:
                 continue
-            contribution = 1.0 / (k + rank)
+
             if key not in merged:
-                merged[key] = dict(item)
-                merged[key]["score"] = contribution
-                merged[key]["rrf_score"] = contribution
-                merged[key]["merged_sources"] = 1
-            else:
-                merged[key]["score"] += contribution
-                merged[key]["rrf_score"] = merged[key]["score"]
-                merged[key]["merged_sources"] += 1
-                if _safe_float(item.get("score")) > _safe_float(merged[key].get("pre_merge_score")):
-                    merged[key].update({k2: v for k2, v in item.items() if k2 not in {"score", "rrf_score"}})
-            merged[key]["pre_merge_score"] = max(
-                _safe_float(merged[key].get("pre_merge_score")),
-                _safe_float(item.get("score")),
-            )
+                row = dict(item)
+                row["pre_union_score"] = _safe_float(item.get("score"), 0.0)
+                row["routing_sources"] = [source]
+                row["routing_source_ranks"] = {source: rank}
+                if source == "routed":
+                    row["score"] = round(_safe_float(row.get("score"), 0.0) - 0.04, 6)
+                    row["routed_only_penalty"] = 0.04
+                merged[key] = row
+                continue
+
+            row = merged[key]
+            row["routing_source_ranks"][source] = rank
+            if source not in row["routing_sources"]:
+                row["routing_sources"].append(source)
+
+            item_score = _safe_float(item.get("score"), 0.0)
+            if item_score > _safe_float(row.get("pre_union_score"), 0.0):
+                preserved = {
+                    "routing_sources": row["routing_sources"],
+                    "routing_source_ranks": row["routing_source_ranks"],
+                }
+                row.update(item)
+                row.update(preserved)
+                row["pre_union_score"] = item_score
+
     results = list(merged.values())
-    results.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-    return results[:top_k]
+    results.sort(key=lambda row: row.get("score", 0.0), reverse=True)
+    return results
 
 
 def _hybrid_candidate_search(
@@ -455,9 +599,52 @@ def _routed_candidates_before_feature_rerank(
     profile: dict | None,
 ) -> tuple[str, list[dict], dict]:
     route = _route_query_with_gemini(query)
-    search_query = route["search_query"]
+    search_query = route.get("search_query") or query
     candidate_limit = max(top_k, candidate_k or top_k)
     routed_alpha = ROUTED_ALPHA.get(route["intent"], DEFAULT_ALPHA)
+    baseline_candidates, _ = _hybrid_candidate_search(
+        query=query,
+        top_k=top_k,
+        alpha=alpha,
+        category_filter=category_filter,
+        candidate_k=candidate_limit,
+    )
+    baseline_boosted = _apply_intent_boosts(baseline_candidates, route)
+    route_gate_eligible = (
+        route["intent"] in ROUTED_ALPHA
+        and route["confidence"] >= ROUTING_CONFIDENCE_THRESHOLD
+    )
+
+    if not route_gate_eligible:
+        candidates = baseline_boosted
+        diagnostics = {
+            "route": route,
+            "requested_alpha": alpha,
+            "routed_alpha": routed_alpha,
+            "final_alpha": alpha,
+            "fallback_used": True,
+            "routing_action": "baseline_feature_only",
+            "top_score_gap": 0.0,
+            "baseline_candidate_count": len(baseline_candidates),
+            "routed_candidate_count": 0,
+            "candidate_count": len(candidates),
+        }
+        print(
+            "| query-routing | "
+            f"{_markdown_log_cell(query)} | "
+            f"search_query={_markdown_log_cell(search_query)} | "
+            f"intent={route['intent']} | "
+            f"confidence={route['confidence']:.3f} | "
+            f"routed_alpha={routed_alpha:.2f} | "
+            f"final_alpha={alpha:.2f} | "
+            "fallback=True | "
+            "action=baseline_feature_only | "
+            "gap=0.0000 | ",
+            flush=True,
+        )
+        for item in candidates:
+            item["query_routing"] = diagnostics
+        return query, candidates, diagnostics
 
     routed_raw, routed_diag = _hybrid_candidate_search(
         query=search_query,
@@ -467,32 +654,22 @@ def _routed_candidates_before_feature_rerank(
         candidate_k=candidate_limit,
     )
     routed_boosted = _apply_intent_boosts(routed_raw, route, routed_diag)
-    preliminary = rerank_notices(routed_boosted, profile=profile or {}, top_k=min(candidate_limit, len(routed_boosted)))
-    preliminary_top_score = _safe_float(preliminary[0].get("score"), 0.0) if preliminary else 0.0
 
     use_routed_alpha = (
-        route["intent"] in ROUTED_ALPHA
-        and route["confidence"] >= ROUTING_CONFIDENCE_THRESHOLD
+        route["intent"] == "factual"
         and routed_diag.get("top_score_gap", 0.0) >= ROUTING_SCORE_GAP_THRESHOLD
-        and preliminary_top_score >= ROUTING_RERANK_SCORE_THRESHOLD
     )
 
     if use_routed_alpha:
-        candidates = routed_boosted
+        candidates = _feature_union_candidates(baseline_boosted, routed_boosted)
         final_alpha = routed_alpha
         fallback_used = False
+        routing_action = "baseline_routed_feature_union"
     else:
-        default_raw, default_diag = _hybrid_candidate_search(
-            query=search_query,
-            top_k=top_k,
-            alpha=DEFAULT_ALPHA,
-            category_filter=category_filter,
-            candidate_k=candidate_limit,
-        )
-        default_boosted = _apply_intent_boosts(default_raw, route, default_diag)
-        candidates = _rrf_merge([routed_boosted, default_boosted], top_k=candidate_limit)
-        final_alpha = DEFAULT_ALPHA
+        candidates = baseline_boosted
+        final_alpha = alpha
         fallback_used = True
+        routing_action = "baseline_feature_only"
 
     diagnostics = {
         "route": route,
@@ -500,8 +677,10 @@ def _routed_candidates_before_feature_rerank(
         "routed_alpha": routed_alpha,
         "final_alpha": final_alpha,
         "fallback_used": fallback_used,
+        "routing_action": routing_action,
         "top_score_gap": round(routed_diag.get("top_score_gap", 0.0), 6),
-        "preliminary_reranker_score": round(preliminary_top_score, 6),
+        "baseline_candidate_count": len(baseline_candidates),
+        "routed_candidate_count": len(routed_boosted),
         "candidate_count": len(candidates),
     }
     print(
@@ -513,8 +692,8 @@ def _routed_candidates_before_feature_rerank(
         f"routed_alpha={routed_alpha:.2f} | "
         f"final_alpha={final_alpha:.2f} | "
         f"fallback={fallback_used} | "
-        f"gap={diagnostics['top_score_gap']:.4f} | "
-        f"pre_rerank={diagnostics['preliminary_reranker_score']:.4f} |",
+        f"action={routing_action} | "
+        f"gap={diagnostics['top_score_gap']:.4f} | ",
         flush=True,
     )
     for item in candidates:
@@ -588,20 +767,13 @@ def generate_llm_reply(
     profile: dict,
     is_first: bool = False,
 ) -> str:
-    if not GEMINI_API_KEY:
+    if not GEMINI_API_KEY_PAID_TIER:
         if results:
             return f"총 {len(results)}개의 관련 공지를 찾았습니다."
-        return "관련 공지를 찾지 못했습니다. GEMINI_API_KEY를 설정해 주세요."
+        return "관련 공지를 찾지 못했습니다. GEMINI_API_KEY_PAID_TIER를 설정해 주세요."
 
     if not results:
         return "관련 공지를 찾지 못했습니다. 다른 키워드로 검색해보세요."
-
-    try:
-        import google.generativeai as genai
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-    except Exception as e:
-        return f"[Gemini 모델 로드 오류] {e}"
 
     notices     = load_notices_cache()
     body_map    = {n["url"]: n.get("body", "") for n in notices}
@@ -631,11 +803,15 @@ def generate_llm_reply(
 {user_query}"""
 
     try:
-        response = model.generate_content(
-            prompt,
-            request_options={"timeout": GEMINI_REPLY_TIMEOUT_SECONDS},
+        reply_started_at = perf_counter()
+        response_text = generate_content_text(
+            api_key=GEMINI_API_KEY_PAID_TIER,
+            prompt=prompt,
+            timeout=GEMINI_REPLY_TIMEOUT_SECONDS,
         )
-        return response.text.strip()
+        reply_elapsed_ms = (perf_counter() - reply_started_at) * 1000
+        print(f"[reply-generator] Gemini 응답 생성 성공: {reply_elapsed_ms:.1f}ms", flush=True)
+        return response_text
     except Exception as e:
-        print(f"[Gemini 오류] fallback 사용: {e}", flush=True)
+        print(f"[reply-generator] Gemini 응답 생성 실패, fallback 사용: {e}", flush=True)
         return f"외부 요인으로 LLM 응답을 생성하지 못했습니다. 검색 결과 {len(results)}개 찾았습니다."
