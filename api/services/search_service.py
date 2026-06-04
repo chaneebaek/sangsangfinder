@@ -8,7 +8,7 @@ import json
 import re
 from time import perf_counter
 
-from ..core.config import GEMINI_API_KEY, SEARCH_ALPHA
+from ..core.config import GEMINI_API_KEY, GEMINI_REPLY_TIMEOUT_SECONDS, SEARCH_ALPHA
 from ..core.models import get_embed_model, get_vector_collection, get_index_fingerprint, load_notices_cache
 from ..core.utils import tokenize_ko
 from .feature_reranker import rerank_notices
@@ -631,7 +631,11 @@ def generate_llm_reply(
 {user_query}"""
 
     try:
-        response = model.generate_content(prompt)
+        response = model.generate_content(
+            prompt,
+            request_options={"timeout": GEMINI_REPLY_TIMEOUT_SECONDS},
+        )
         return response.text.strip()
     except Exception as e:
-        return f"[Gemini 오류] {e}"
+        print(f"[Gemini 오류] fallback 사용: {e}", flush=True)
+        return f"외부 요인으로 LLM 응답을 생성하지 못했습니다. 검색 결과 {len(results)}개 찾았습니다."

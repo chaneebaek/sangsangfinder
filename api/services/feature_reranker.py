@@ -16,7 +16,7 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-from ..core.config import GEMINI_API_KEY_FREE_TIER, NOTICE_FEATURE_CACHE_PATH
+from ..core.config import GEMINI_API_KEY_PAID_TIER, GEMINI_FEATURE_TIMEOUT_SECONDS, NOTICE_FEATURE_CACHE_PATH
 
 AUDIENCES = {"학부생", "교직원", "졸업생", "일반인", "기타"}
 DEFAULT_FEATURES: dict[str, Any] = {
@@ -120,13 +120,13 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
 
 
 def _extract_with_gemini(notices: list[dict]) -> dict[str, dict[str, Any]]:
-    if not GEMINI_API_KEY_FREE_TIER:
+    if not GEMINI_API_KEY_PAID_TIER:
         return {_notice_key(notice): _fallback_extract(notice, llm_failed=True) for notice in notices}
 
     try:
         import google.generativeai as genai
 
-        genai.configure(api_key=GEMINI_API_KEY_FREE_TIER)
+        genai.configure(api_key=GEMINI_API_KEY_PAID_TIER)
         model = genai.GenerativeModel("gemini-2.5-flash")
     except Exception as exc:
         print(f"[feature-reranker] Gemini 로드 실패, fallback 사용: {exc}", flush=True)
@@ -142,6 +142,7 @@ def _extract_with_gemini(notices: list[dict]) -> dict[str, dict[str, Any]]:
                     "temperature": 0,
                     "response_mime_type": "application/json",
                 },
+                request_options={"timeout": GEMINI_FEATURE_TIMEOUT_SECONDS},
             )
             rows = _parse_json_array(response.text)
         except Exception as exc:

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 206,
+  "revision": 210,
   "index_config": {
     "signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
     "embedding_model": "jhgan/ko-sroberta-multitask",
@@ -19262,6 +19262,77 @@
         "05179e581b10ad297fa02dd601e60ae4_1",
         "05179e581b10ad297fa02dd601e60ae4_2",
         "05179e581b10ad297fa02dd601e60ae4_3"
+      ]
+    },
+    "4994d9410deda3d5c6b12f23b48d0a86": {
+      "content_hash": "eb2591c44805a188f9219054e08c18c2debd751e4233c9fac89f273ef277fba3",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "4994d9410deda3d5c6b12f23b48d0a86_0",
+        "4994d9410deda3d5c6b12f23b48d0a86_1",
+        "4994d9410deda3d5c6b12f23b48d0a86_2"
+      ]
+    },
+    "8c695f660ad080920c76666088b0e27d": {
+      "content_hash": "6ebefb711e15feab2e81647d2a2efe645bb8599002ddbfbaf5662108145cf0b4",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "8c695f660ad080920c76666088b0e27d_0"
+      ]
+    },
+    "08cd8c0ac189b54c400b0f5dd95ca37c": {
+      "content_hash": "a30362f713e9d8a638a761f10d31c745c243b00c912bc4bbdb66536fa265dc19",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "08cd8c0ac189b54c400b0f5dd95ca37c_0",
+        "08cd8c0ac189b54c400b0f5dd95ca37c_1"
+      ]
+    },
+    "98e0e4bcba0ed53c4b92241fba174c72": {
+      "content_hash": "2b12a8dfe789ed0535f762ff3db1ede137adfba58080a152e678a5e85cd4ee3a",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "98e0e4bcba0ed53c4b92241fba174c72_0"
+      ]
+    },
+    "c6ee5ac8259fd83bbe7c4e52c4008c8a": {
+      "content_hash": "aebb084414d9f329726a31f44c134990ff5dbafbaa6b295fe936a3a198af7874",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "c6ee5ac8259fd83bbe7c4e52c4008c8a_0",
+        "c6ee5ac8259fd83bbe7c4e52c4008c8a_1",
+        "c6ee5ac8259fd83bbe7c4e52c4008c8a_2"
+      ]
+    },
+    "21ef88c72e2bea47cf6fbc87b3000cd0": {
+      "content_hash": "68f0ad6a1199f44605222871ce656fd1dfa3b6dacbac8117c3f6012cb2b479e0",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "21ef88c72e2bea47cf6fbc87b3000cd0_0",
+        "21ef88c72e2bea47cf6fbc87b3000cd0_1"
+      ]
+    },
+    "1ed07a45ae746b356e5c11cc7a6c6e75": {
+      "content_hash": "d8f3040f9f908358c6544c3aa80b71cfdc77e7980d90bcca315b79c2dc8a2026",
+      "index_config_signature": "60ff48ffad28ab48065a78f40f2b730c86f4d8b4794ea92f1574af5c618cd7b9",
+      "chunk_ids": [
+        "1ed07a45ae746b356e5c11cc7a6c6e75_0",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_1",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_2",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_3",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_4",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_5",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_6",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_7",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_8",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_9",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_10",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_11",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_12",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_13",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_14",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_15",
+        "1ed07a45ae746b356e5c11cc7a6c6e75_16"
       ]
     }
   }

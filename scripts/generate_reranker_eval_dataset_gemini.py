@@ -372,9 +372,9 @@ def generate_queries_with_gemini(
     if cache_key in cache:
         return cache[cache_key]["queries"]
 
-    api_key = os.getenv("GEMINI_API_KEY_FREE_TIER")
+    api_key = os.getenv("GEMINI_API_KEY_PAID_TIER")
     if not api_key:
-        raise RuntimeError("GEMINI_API_KEY_FREE_TIER is required in .env")
+        raise RuntimeError("GEMINI_API_KEY_PAID_TIER is required in .env")
 
     import google.generativeai as genai
 
@@ -522,7 +522,7 @@ def build_dataset(
             "model": model_name,
             "queries_per_notice": queries_per_notice,
             "hard_negatives_per_query": hard_negative_count,
-            "api_key_env": "GEMINI_API_KEY_FREE_TIER",
+            "api_key_env": "GEMINI_API_KEY_PAID_TIER",
         },
         "labels": {
             "3": "exact target notice",
