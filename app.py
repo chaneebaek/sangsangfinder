@@ -659,6 +659,9 @@ def search_rag_notices(query: str, category_filter: str = "전체", top_k: int =
             query=query,
             top_k=top_k,
             category_filter=pinecone_categories,
+            candidate_k=50,
+            feature_rerank=True,
+            profile=st.session_state.get("profile", {}),
         )
     except Exception as e:
         st.error(f"[Pinecone 검색 오류] {e}")

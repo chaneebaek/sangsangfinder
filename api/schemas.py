@@ -20,7 +20,7 @@ class SearchRequest(BaseModel):
     top_k:    int        = Field(default=5,   ge=1, le=20)
     alpha:    float      = Field(default=0.5, ge=0.0, le=1.0)
     is_first: bool       = False          # 첫 번째 대화 여부 (인사말 포함)
-    feature_rerank: bool = False
+    feature_rerank: bool = True
     profile: dict       = Field(default_factory=dict)
 
 
