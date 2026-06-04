@@ -3,6 +3,7 @@
 # uvicorn app_api:app --reload --port 8000
 # ============================================================
 
+import logging
 import os, sys, re, json
 from datetime import datetime
 from typing import Optional
@@ -25,6 +26,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+logger = logging.getLogger(__name__)
 
 # ── 외부 모듈 import ─────────────────────────────────────────
 from recommend import load_notices_from_supabase, two_tower_recommend, get_supabase
@@ -281,6 +283,8 @@ async def chat(req: ChatRequest):
         ((r.get("feature_reranker") or {}).get("features") or {}).get("extraction", {}).get("llm_failed")
         for r in results
     )
+    if reranker_warning:
+        logger.warning("LLM 연결에 실패하여 규칙 기반으로 계산한 결과입니다.")
     notices = []
     for r in results:
         notices.append({
@@ -293,10 +297,6 @@ async def chat(req: ChatRequest):
     return {
         "reply": reply,
         "results": notices,
-        "reranker_warning": (
-            "LLM 연결에 실패하여 규칙 기반으로 계산한 결과입니다."
-            if reranker_warning else None
-        ),
     }
 
 # ── 추천 API ─────────────────────────────────────────────────

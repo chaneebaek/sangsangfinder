@@ -116,7 +116,7 @@ def generate_llm_reply(user_query, results, profile, is_first=False):
     model = get_gemini_model(GEMINI_API_KEY) if GEMINI_API_KEY else None
     if not model: return f"총 {len(results)}개의 관련 공지를 찾았습니다." if results else "관련 공지를 찾지 못했습니다."
     if not results: return "관련 공지를 찾지 못했습니다. 다른 키워드로 검색해보세요."
-    top_results = results[:3]
+    top_results = results[:5]
     needs_body_fallback = any(len(str(r.get("content") or "").strip()) < 80 for r in top_results)
     body_map = {}
     if needs_body_fallback:
@@ -681,7 +681,7 @@ def render_chatbot(profile):
                 else:
                     st.markdown(f'<div class="chat-bubble-bot">{msg["content"]}</div>', unsafe_allow_html=True)
                     if msg.get("results"):
-                        for idx, r in enumerate(msg["results"][:3], start=1):
+                        for idx, r in enumerate(msg["results"][:5], start=1):
                             title_safe = html.escape(str(r.get("title", "")))
                             cat_safe   = html.escape(str(r.get("category", "기타")))
                             date_safe  = html.escape(str(r.get("date", "")))

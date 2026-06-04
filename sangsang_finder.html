@@ -212,6 +212,7 @@ html, body {
   font-size:14px; line-height:1.55; border:1px solid var(--border);
   word-break:break-word; animation:fadeUp 0.18s ease;
 }
+.bubble-bot.after-user { margin-top:16px; }
 @keyframes fadeUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
 
 .ref-card {
@@ -501,7 +502,7 @@ html, body {
         </div>
         <div>
           <div class="sb-logo-name">상상파인더</div>
-          <div class="sb-logo-en">Hansung Notice Finder</div>
+          <div class="sb-logo-en">한성대학교 공지사항 검색 및 큐레이션</div>
         </div>
       </div>
 
@@ -1106,7 +1107,7 @@ function renderWelcome() {
       </div>
       <div class="welcome-title">안녕하세요, ${profile.name}님!</div>
       <div class="welcome-hints">
-        한성대 공지를 자연어로 검색해보세요.<br/>
+        상상파인더에게 궁금한 내용을 물어보세요.<br><br/>
         <span class="hint-pill" onclick="setInputAndSend('장학금 신청 기간 알려줘')">장학금 신청 기간 알려줘</span>
         <span class="hint-pill" onclick="setInputAndSend('취업박람회 언제야?')">취업박람회 언제야?</span>
         <span class="hint-pill" onclick="setInputAndSend('비교과 프로그램 추천해줘')">비교과 프로그램 추천해줘</span>
@@ -1145,8 +1146,7 @@ async function sendChat() {
     const res = await callChatAPI(text, cat);
     loadEl.remove();
     appendBubble('bot', res.reply);
-    if (res.reranker_warning) appendSystemNote(res.reranker_warning);
-    if (res.results && res.results.length) renderRefCards(res.results.slice(0,3));
+    if (res.results && res.results.length) renderRefCards(res.results.slice(0,5));
     chatHistory.push({ role:'bot', content:res.reply, results:res.results });
   } catch(e) {
     loadEl.remove();
@@ -1178,7 +1178,9 @@ async function callChatAPI(query, category) {
 function appendBubble(role, text) {
   const body = document.getElementById('chat-body');
   const el = document.createElement('div');
-  el.className = role === 'user' ? 'bubble-user' : 'bubble-bot';
+  const prevRole = body.lastElementChild?.dataset?.role;
+  el.className = role === 'user' ? 'bubble-user' : `bubble-bot${prevRole === 'user' ? ' after-user' : ''}`;
+  el.dataset.role = role;
   el.textContent = text;
   body.appendChild(el);
   scrollChatBottom();
@@ -1187,7 +1189,9 @@ function appendBubble(role, text) {
 function appendTyping() {
   const body = document.getElementById('chat-body');
   const el = document.createElement('div');
-  el.className = 'bubble-bot';
+  const prevRole = body.lastElementChild?.dataset?.role;
+  el.className = `bubble-bot${prevRole === 'user' ? ' after-user' : ''}`;
+  el.dataset.role = 'bot';
   el.style.padding = '12px 18px';
   el.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
   body.appendChild(el);

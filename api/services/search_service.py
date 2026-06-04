@@ -13,6 +13,7 @@ from ..core.config import (
     GEMINI_API_KEY_PAID_TIER,
     GEMINI_REPLY_TIMEOUT_SECONDS,
     GEMINI_ROUTER_TIMEOUT_SECONDS,
+    QUERY_ROUTING_ENABLED,
     SEARCH_ALPHA,
 )
 from ..core.models import get_embed_model, get_vector_collection, get_index_fingerprint, load_notices_cache
@@ -598,6 +599,38 @@ def _routed_candidates_before_feature_rerank(
     candidate_k: int | None,
     profile: dict | None,
 ) -> tuple[str, list[dict], dict]:
+    if not QUERY_ROUTING_ENABLED:
+        candidate_limit = max(top_k, candidate_k or top_k)
+        candidates, _ = _hybrid_candidate_search(
+            query=query,
+            top_k=top_k,
+            alpha=alpha,
+            category_filter=category_filter,
+            candidate_k=candidate_limit,
+        )
+        diagnostics = {
+            "route": {
+                "original_query": query,
+                "search_query": query,
+                "intent": "disabled",
+                "confidence": 0.0,
+                "method": "disabled",
+                "features": {},
+            },
+            "requested_alpha": alpha,
+            "routed_alpha": alpha,
+            "final_alpha": alpha,
+            "fallback_used": True,
+            "routing_action": "disabled",
+            "top_score_gap": 0.0,
+            "baseline_candidate_count": len(candidates),
+            "routed_candidate_count": 0,
+            "candidate_count": len(candidates),
+        }
+        for item in candidates:
+            item["query_routing"] = diagnostics
+        return query, candidates, diagnostics
+
     route = _route_query_with_gemini(query)
     search_query = route.get("search_query") or query
     candidate_limit = max(top_k, candidate_k or top_k)
@@ -778,7 +811,7 @@ def generate_llm_reply(
     notices     = load_notices_cache()
     body_map    = {n["url"]: n.get("body", "") for n in notices}
     context_parts = []
-    for i, r in enumerate(results[:3], 1):
+    for i, r in enumerate(results[:5], 1):
         body = (r.get("content") or body_map.get(r["url"], ""))[:800]
         context_parts.append(
             f"[공지 {i}]\n제목: {r['title']}\n날짜: {r['date']}\n내용: {body if body else '(본문 없음)'}"
