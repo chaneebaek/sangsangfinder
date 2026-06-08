@@ -2,7 +2,7 @@
 # crawler.py — 공통 크롤러 모듈
 #
 # 설치:
-#   pip install opencv-python-headless pdfplumber pymupdf requests beautifulsoup4 python-dotenv
+#   pip install opencv-python-headless pdfplumber pymupdf requests beautifulsoup4
 # ============================================================
 
 import json
@@ -15,16 +15,9 @@ from io import BytesIO
 
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
-
-load_dotenv()
 
 HEADERS  = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 BASE_URL = "https://www.hansung.ac.kr"
-
-# ── Clova OCR 설정 ─────────────────────────────────────────────
-_CLOVA_API_URL    = os.getenv("CLOVA_OCR_API_URL")
-_CLOVA_SECRET_KEY = os.getenv("CLOVA_OCR_SECRET_KEY")
 
 # ── 이미지 필터 설정 ──────────────────────────────────────────
 _SKIP_IMG_EXTS = {".gif", ".svg", ".ico", ".webp", ".bmp"}
@@ -124,8 +117,10 @@ def _preprocess(img):
 
 def _clova_ocr_bytes(img_bytes: bytes, fmt: str = "jpg") -> list[str]:
     """이미지 bytes → Clova OCR API → 텍스트 리스트."""
-    if not _CLOVA_API_URL or not _CLOVA_SECRET_KEY:
-        raise RuntimeError("CLOVA_OCR_API_URL 또는 CLOVA_OCR_SECRET_KEY가 .env에 없습니다.")
+    clova_api_url = os.environ.get("CLOVA_OCR_API_URL")
+    clova_secret_key = os.environ.get("CLOVA_OCR_SECRET_KEY")
+    if not clova_api_url or not clova_secret_key:
+        raise RuntimeError("CLOVA_OCR_API_URL 또는 CLOVA_OCR_SECRET_KEY 환경변수가 없습니다.")
 
     request_json = {
         "images": [{"format": fmt, "name": "ocr"}],
@@ -134,8 +129,8 @@ def _clova_ocr_bytes(img_bytes: bytes, fmt: str = "jpg") -> list[str]:
         "timestamp": int(round(time.time() * 1000)),
     }
     response = requests.post(
-        _CLOVA_API_URL,
-        headers={"X-OCR-SECRET": _CLOVA_SECRET_KEY},
+        clova_api_url,
+        headers={"X-OCR-SECRET": clova_secret_key},
         data={"message": json.dumps(request_json).encode("UTF-8")},
         files=[("file", img_bytes)],
         timeout=30,
@@ -202,10 +197,10 @@ def _ocr_image(img_url: str) -> str:
 # PDF 추출
 # ============================================================
 
-def _extract_pdf(pdf_url: str) -> str:
+def _extract_pdf(pdf_url: str, include_ocr: bool = True) -> str:
     """PDF URL → 텍스트.
     - pdfplumber로 텍스트 레이어 추출
-    - 텍스트가 부족하거나 이미지 중심인 페이지만 Clova OCR 추가 수행
+    - include_ocr=True이면 텍스트가 부족하거나 이미지 중심인 페이지만 Clova OCR 추가 수행
     """
     try:
         res = requests.get(pdf_url, headers=HEADERS, timeout=15)
@@ -232,37 +227,38 @@ def _extract_pdf(pdf_url: str) -> str:
             print("    ℹ️ pdfplumber 미설치 — PDF 텍스트 레이어 추출 스킵")
             pages_to_ocr = None
 
-        # 비용 절감을 위해 텍스트가 충분한 페이지는 OCR하지 않는다.
-        try:
-            import cv2
-            import fitz
-            import numpy as np
+        if include_ocr:
+            # 비용 절감을 위해 텍스트가 충분한 페이지는 OCR하지 않는다.
+            try:
+                import cv2
+                import fitz
+                import numpy as np
 
-            doc       = fitz.open(stream=pdf_bytes, filetype="pdf")
-            ocr_parts = []
+                doc       = fitz.open(stream=pdf_bytes, filetype="pdf")
+                ocr_parts = []
 
-            target_pages = (
-                range(min(len(doc), 10))
-                if pages_to_ocr is None
-                else sorted(page for page in pages_to_ocr if page < min(len(doc), 10))
-            )
-            for page_num in target_pages:
-                pix = doc[page_num].get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
-                img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
-                if pix.n == 4:
-                    img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
+                target_pages = (
+                    range(min(len(doc), 10))
+                    if pages_to_ocr is None
+                    else sorted(page for page in pages_to_ocr if page < min(len(doc), 10))
+                )
+                for page_num in target_pages:
+                    pix = doc[page_num].get_pixmap(matrix=fitz.Matrix(2.0, 2.0))
+                    img = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.h, pix.w, pix.n)
+                    if pix.n == 4:
+                        img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
 
-                img   = _preprocess(img)
-                lines = _ocr_img_array(img, "jpg")
-                if lines:
-                    ocr_parts.append(" ".join(lines))
+                    img   = _preprocess(img)
+                    lines = _ocr_img_array(img, "jpg")
+                    if lines:
+                        ocr_parts.append(" ".join(lines))
 
-            ocr_text = _clean_ocr_text("\n".join(ocr_parts))
-            if ocr_text:
-                parts.append(f"[PDF OCR] {ocr_text}")
+                ocr_text = _clean_ocr_text("\n".join(ocr_parts))
+                if ocr_text:
+                    parts.append(f"[PDF OCR] {ocr_text}")
 
-        except ImportError:
-            print("    ℹ️ pymupdf 미설치 — 스캔 PDF OCR 스킵 (pip install pymupdf)")
+            except ImportError:
+                print("    ℹ️ pymupdf 미설치 — 스캔 PDF OCR 스킵 (pip install pymupdf)")
 
         return " ".join(parts)
 
@@ -275,8 +271,8 @@ def _extract_pdf(pdf_url: str) -> str:
 # 본문 크롤링
 # ============================================================
 
-def get_post_content(url: str) -> str:
-    """공지 본문 추출: 텍스트 + 이미지 OCR (병렬) + PDF."""
+def get_post_content(url: str, include_ocr: bool = True) -> str:
+    """공지 본문 추출: 텍스트 + 선택적 이미지/PDF OCR + PDF 텍스트 레이어."""
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
         res.raise_for_status()
@@ -299,7 +295,7 @@ def get_post_content(url: str) -> str:
                 if _is_text_image(src):
                     img_srcs.append(src)
 
-            if img_srcs:
+            if include_ocr and img_srcs:
                 with ThreadPoolExecutor(max_workers=4) as executor:
                     futures = {executor.submit(_ocr_image, src): src for src in img_srcs}
                     for future in as_completed(futures):
@@ -312,7 +308,7 @@ def get_post_content(url: str) -> str:
             filename = a.get_text(strip=True).lower()
             if "download.do" in href and filename.endswith(".pdf"):
                 pdf_url  = BASE_URL + href if href.startswith("/") else href
-                pdf_text = _extract_pdf(pdf_url)
+                pdf_text = _extract_pdf(pdf_url, include_ocr=include_ocr)
                 if pdf_text:
                     parts.append(f"[첨부PDF] {pdf_text}")
 

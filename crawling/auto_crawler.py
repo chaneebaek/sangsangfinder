@@ -134,9 +134,9 @@ def fetch_list_page(page: int) -> list[dict]:
 
 
 def fetch_body(url: str) -> str:
-    """공지 본문 추출: 텍스트 + 이미지 OCR + PDF."""
+    """공지 본문 추출: 텍스트 + PDF 텍스트 레이어 (OCR 제외)."""
     try:
-        return get_post_content(url)
+        return get_post_content(url, include_ocr=False)
     except Exception as e:
         logger.warning("본문 크롤링 실패 (%s): %s", url, e)
     return ""
