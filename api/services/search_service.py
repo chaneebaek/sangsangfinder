@@ -47,6 +47,37 @@ QUERY_EXPANSIONS = {
     "유예": "학사학위취득 유예",
     "취소": "취소 신청",
 }
+PERSONALIZATION_KEYWORDS = (
+    "내 학과", "우리 학과", "내 전공", "우리 전공", "내 트랙", "우리 트랙",
+    "내가 지원", "제가 지원", "나 지원", "지원할 수 있는", "지원 가능한",
+    "나한테 맞", "나에게 맞", "내게 맞", "내 조건", "내 프로필",
+    "내 관심", "관심사에 맞", "추천",
+)
+PROFILE_FIELD_LABELS = {
+    "college": "단과대학",
+    "track": "학과/트랙",
+    "department": "학과",
+    "major": "전공",
+    "grade": "학년",
+    "region": "거주지역",
+}
+IT_PROFILE_KEYWORDS = (
+    "IT", "AI", "소프트웨어", "컴퓨터", "웹공학", "모바일", "빅데이터", "데이터",
+    "디지털콘텐츠", "가상현실", "전자", "시스템반도체", "로봇", "산업공학",
+    "응용산업데이터", "융합보안", "SW융합", "ICT", "인공지능",
+)
+IT_JOB_QUERY_KEYWORDS = (
+    "채용", "취업", "추천채용", "인턴", "현장실습", "일경험", "직무", "회사", "기업",
+)
+IT_JOB_SEARCH_TERMS = ("IT", "AI", "소프트웨어", "개발", "데이터", "웹", "앱", "백엔드", "프론트엔드", "인공지능")
+STUDENT_JOB_POSITIVE_KEYWORDS = (
+    "신입", "인턴", "현장실습생", "현장실습", "추천채용", "채용정보", "취업",
+    "졸업예정", "대학생", "재학생", "전공무관", "컨설턴트", "개발자", "엔지니어",
+)
+ACADEMIC_HIRING_NEGATIVE_KEYWORDS = (
+    "전임교원", "교원 초빙", "교원초빙", "교수 초빙", "교수초빙", "강사 초빙",
+    "강사초빙", "비전임교원", "겸임교원", "초빙 공고", "초빙공고",
+)
 
 
 def _category_filter_key(category_filter: str | list[str] | None) -> str:
@@ -231,6 +262,108 @@ def _build_search_query(original: str, rewritten: str, features: dict) -> str:
     return " ".join(_dedupe_keep_order([term for term in terms if term]))
 
 
+def _has_personalization_intent(query: str) -> bool:
+    text = re.sub(r"\s+", " ", query or "").strip()
+    return any(keyword in text for keyword in PERSONALIZATION_KEYWORDS)
+
+
+def _is_it_profile(profile: dict | None) -> bool:
+    if not profile:
+        return False
+    text = " ".join(
+        str(profile.get(key) or "")
+        for key in ("college", "track", "department", "major")
+    )
+    return any(keyword.lower() in text.lower() for keyword in IT_PROFILE_KEYWORDS)
+
+
+def _is_job_query(query: str) -> bool:
+    return any(keyword in (query or "") for keyword in IT_JOB_QUERY_KEYWORDS)
+
+
+def _profile_search_terms(profile: dict | None, query: str = "") -> list[str]:
+    if not profile:
+        return []
+
+    query_text = query or ""
+    terms: list[str] = []
+    for key in PROFILE_FIELD_LABELS:
+        value = str(profile.get(key) or "").strip()
+        if value:
+            terms.append(value)
+
+    interests = profile.get("interests") or []
+    if isinstance(interests, str):
+        interests = [interests]
+    clean_interests = [str(value).strip() for value in interests if str(value).strip()]
+    if clean_interests:
+        matched_interests = [interest for interest in clean_interests if interest in query_text]
+        terms.extend(matched_interests)
+
+    if any(profile.get(key) for key in ("college", "track", "department", "major", "grade")):
+        terms.extend(["대학생", "재학생", "지원 가능", "모집 대상"])
+
+    return _dedupe_keep_order(terms)
+
+
+def _profile_summary(profile: dict | None) -> str:
+    if not profile:
+        return ""
+
+    parts: list[str] = []
+    for key, label in PROFILE_FIELD_LABELS.items():
+        value = str(profile.get(key) or "").strip()
+        if value:
+            parts.append(f"{label}: {value}")
+
+    interests = profile.get("interests") or []
+    if isinstance(interests, str):
+        interests = [interests]
+    clean_interests = [str(value).strip() for value in interests if str(value).strip()]
+    if clean_interests:
+        parts.append("관심사: " + ", ".join(clean_interests))
+
+    return "; ".join(parts)
+
+
+def _apply_personalization_to_route(route: dict, query: str, profile: dict | None) -> dict:
+    if not _has_personalization_intent(query):
+        return route
+
+    profile_terms = _profile_search_terms(profile, query)
+    profile_summary = _profile_summary(profile)
+    if not profile_terms:
+        route = dict(route)
+        route["personalization"] = {
+            "enabled": True,
+            "applied": False,
+            "reason": "profile_empty",
+            "profile_terms": [],
+            "profile_summary": "",
+        }
+        return route
+
+    route = dict(route)
+    features = dict(route.get("features") or {})
+    existing_expanded_terms = features.get("expanded_terms") or []
+    existing_entities = features.get("entities") or []
+    features["expanded_terms"] = _dedupe_keep_order([*existing_expanded_terms, *profile_terms])
+    features["entities"] = _dedupe_keep_order([*existing_entities, *profile_terms[:8]])
+    route["features"] = features
+    route["search_query"] = _build_search_query(query, route.get("search_query") or query, features)
+    if route.get("intent") == "기타":
+        route["intent"] = "conditional"
+    route["confidence"] = max(_safe_float(route.get("confidence"), 0.0), 0.88)
+    route["personalization"] = {
+        "enabled": True,
+        "applied": True,
+        "reason": "personalized_query",
+        "profile_terms": profile_terms,
+        "profile_summary": profile_summary,
+    }
+    return route
+
+
 def _extract_json_object(text: str) -> dict | None:
     if not text:
         return None
@@ -351,6 +484,40 @@ def _keyword_boost(text: str, keywords: tuple[str, ...], weight: float) -> float
     return min(weight * hits, weight * 3)
 
 
+def _personalized_job_score(query: str, item: dict, route: dict) -> tuple[float, dict[str, float]]:
+    personalization = route.get("personalization") or {}
+    if not personalization.get("applied") or not _is_job_query(query):
+        return 0.0, {}
+
+    profile_summary = str(personalization.get("profile_summary") or "")
+    if not any(keyword.lower() in profile_summary.lower() for keyword in IT_PROFILE_KEYWORDS):
+        return 0.0, {}
+
+    title = str(item.get("title") or "")
+    content = str(item.get("content") or item.get("body") or "")
+    category = str(item.get("category") or "")
+    text = " ".join([title, content, category])
+
+    it_hits = _term_hit_count(text, list(IT_JOB_SEARCH_TERMS))
+    student_job_hits = _term_hit_count(text, list(STUDENT_JOB_POSITIVE_KEYWORDS))
+    academic_hits = _term_hit_count(text, list(ACADEMIC_HIRING_NEGATIVE_KEYWORDS))
+
+    parts: dict[str, float] = {}
+    if it_hits:
+        parts["it_job_keyword"] = min(it_hits * 0.030, 0.120)
+    if student_job_hits:
+        parts["student_job_keyword"] = min(student_job_hits * 0.025, 0.100)
+    if category in {"취업/채용", "인턴십"}:
+        parts["job_category"] = 0.050
+    if "마감" in title:
+        parts["closed_title_penalty"] = -0.120
+    if academic_hits:
+        parts["academic_hiring_penalty"] = -min(academic_hits * 0.120, 0.300)
+
+    score = sum(parts.values())
+    return score, {key: round(value, 6) for key, value in parts.items() if value != 0}
+
+
 def _conditional_match_score(query: str, text: str) -> float:
     query_terms = set(re.findall(r"[가-힣A-Za-z0-9]{2,}", query or ""))
     condition_terms = {
@@ -407,8 +574,19 @@ def _score_query_features(item: dict, route: dict) -> tuple[float, dict[str, flo
     else:
         parts["intent_section"] = 0.0
 
-    bonus = min(sum(parts.values()), _feature_bonus_cap(str(intent)))
-    return bonus, {key: round(value, 6) for key, value in parts.items() if value > 0}
+    personalized_job_score, personalized_job_parts = _personalized_job_score(
+        route.get("original_query") or route.get("search_query") or "",
+        item,
+        route,
+    )
+    parts.update(personalized_job_parts)
+
+    raw_bonus = sum(parts.values())
+    if personalized_job_parts:
+        bonus = max(min(raw_bonus, _feature_bonus_cap(str(intent)) + 0.14), -0.30)
+    else:
+        bonus = min(raw_bonus, _feature_bonus_cap(str(intent)))
+    return bonus, {key: round(value, 6) for key, value in parts.items() if value != 0}
 
 
 def _apply_intent_boosts(candidates: list[dict], route: dict, meta: dict | None = None) -> list[dict]:
@@ -600,9 +778,24 @@ def _routed_candidates_before_feature_rerank(
     profile: dict | None,
 ) -> tuple[str, list[dict], dict]:
     if not QUERY_ROUTING_ENABLED:
+        normalized = _normalize_user_query(query)
+        intent, confidence = _heuristic_intent(normalized)
+        route = _apply_personalization_to_route(
+            {
+                "original_query": query,
+                "search_query": query,
+                "intent": intent,
+                "confidence": confidence,
+                "method": "disabled_heuristic",
+                "features": _build_query_features(query, normalized, intent),
+            },
+            query,
+            profile,
+        )
+        search_query = route.get("search_query") or query
         candidate_limit = max(top_k, candidate_k or top_k)
         candidates, _ = _hybrid_candidate_search(
-            query=query,
+            query=search_query,
             top_k=top_k,
             alpha=alpha,
             category_filter=category_filter,
@@ -611,11 +804,12 @@ def _routed_candidates_before_feature_rerank(
         diagnostics = {
             "route": {
                 "original_query": query,
-                "search_query": query,
-                "intent": "disabled",
-                "confidence": 0.0,
+                "search_query": search_query,
+                "intent": route.get("intent", "disabled"),
+                "confidence": route.get("confidence", 0.0),
                 "method": "disabled",
-                "features": {},
+                "features": route.get("features", {}),
+                "personalization": route.get("personalization", {"enabled": False, "applied": False}),
             },
             "requested_alpha": alpha,
             "routed_alpha": alpha,
@@ -627,11 +821,14 @@ def _routed_candidates_before_feature_rerank(
             "routed_candidate_count": 0,
             "candidate_count": len(candidates),
         }
+        diagnostics["routing_action"] = (
+            "disabled_personalized_query" if (route.get("personalization") or {}).get("applied") else "disabled"
+        )
         for item in candidates:
             item["query_routing"] = diagnostics
-        return query, candidates, diagnostics
+        return search_query, candidates, diagnostics
 
-    route = _route_query_with_gemini(query)
+    route = _apply_personalization_to_route(_route_query_with_gemini(query), query, profile)
     search_query = route.get("search_query") or query
     candidate_limit = max(top_k, candidate_k or top_k)
     routed_alpha = ROUTED_ALPHA.get(route["intent"], DEFAULT_ALPHA)
@@ -688,9 +885,13 @@ def _routed_candidates_before_feature_rerank(
     )
     routed_boosted = _apply_intent_boosts(routed_raw, route, routed_diag)
 
+    personalized = bool((route.get("personalization") or {}).get("applied"))
     use_routed_alpha = (
-        route["intent"] == "factual"
-        and routed_diag.get("top_score_gap", 0.0) >= ROUTING_SCORE_GAP_THRESHOLD
+        personalized
+        or (
+            route["intent"] == "factual"
+            and routed_diag.get("top_score_gap", 0.0) >= ROUTING_SCORE_GAP_THRESHOLD
+        )
     )
 
     if use_routed_alpha:
@@ -811,7 +1012,7 @@ def generate_llm_reply(
     notices     = load_notices_cache()
     body_map    = {n["url"]: n.get("body", "") for n in notices}
     context_parts = []
-    for i, r in enumerate(results[:5], 1):
+    for i, r in enumerate(results[:3], 1):
         body = (r.get("content") or body_map.get(r["url"], ""))[:800]
         context_parts.append(
             f"[공지 {i}]\n제목: {r['title']}\n날짜: {r['date']}\n내용: {body if body else '(본문 없음)'}"
@@ -820,6 +1021,17 @@ def generate_llm_reply(
 
     name     = profile.get("name", "")
     greeting = f"{name}님, 안녕하세요. " if is_first and name else ""
+    route = (results[0].get("query_routing") or {}).get("route") if results else {}
+    personalization = (route or {}).get("personalization") or {}
+    profile_summary = personalization.get("profile_summary") or _profile_summary(profile)
+    personalization_instruction = ""
+    if personalization.get("enabled"):
+        personalization_instruction = (
+            "\n- 사용자 프로필을 반영한 질문입니다. 각 추천 공지마다 사용자의 학과/학년/관심사/지역과 "
+            "왜 맞는지 또는 지원 가능성과 관련된 근거를 한 줄로 덧붙이세요."
+        )
+        if profile_summary:
+            personalization_instruction += f"\n- 사용자 프로필: {profile_summary}"
 
     prompt = f"""당신은 한성대학교 공지사항 안내 도우미입니다.
 
@@ -828,6 +1040,7 @@ def generate_llm_reply(
 - "공지를 참고하세요" 같은 말은 절대 하지 마세요. 정보를 직접 알려주세요.
 - 2~3문장으로 간결하게 답변하세요.
 - 답변 시작: "{greeting}"{"(인사 없이 바로 답변)" if not is_first else ""}
+{personalization_instruction}
 
 [공지 본문]
 {context}

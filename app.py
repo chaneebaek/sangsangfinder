@@ -13,7 +13,7 @@ from recommend import (
     classify_job_type,
     get_supabase,
 )
-from api.services.search_service import hybrid_search as pinecone_hybrid_search
+from api.services.search_service import hybrid_search as pinecone_hybrid_search, _profile_summary
 
 try:
     from dotenv import load_dotenv
@@ -116,7 +116,7 @@ def generate_llm_reply(user_query, results, profile, is_first=False):
     model = get_gemini_model(GEMINI_API_KEY) if GEMINI_API_KEY else None
     if not model: return f"총 {len(results)}개의 관련 공지를 찾았습니다." if results else "관련 공지를 찾지 못했습니다."
     if not results: return "관련 공지를 찾지 못했습니다. 다른 키워드로 검색해보세요."
-    top_results = results[:5]
+    top_results = results[:3]
     needs_body_fallback = any(len(str(r.get("content") or "").strip()) < 80 for r in top_results)
     body_map = {}
     if needs_body_fallback:
@@ -130,12 +130,24 @@ def generate_llm_reply(user_query, results, profile, is_first=False):
         )
     context = "\n\n".join(context_parts)
     greeting = f"{profile.get('name','')}님, 안녕하세요. " if is_first else ""
+    route = (results[0].get("query_routing") or {}).get("route") if results else {}
+    personalization = (route or {}).get("personalization") or {}
+    profile_summary = personalization.get("profile_summary") or _profile_summary(profile)
+    personalization_instruction = ""
+    if personalization.get("enabled"):
+        personalization_instruction = (
+            "\n- 사용자 프로필을 반영한 질문입니다. 각 추천 공지마다 사용자의 학과/학년/관심사/지역과 "
+            "왜 맞는지 또는 지원 가능성과 관련된 근거를 한 줄로 덧붙이세요."
+        )
+        if profile_summary:
+            personalization_instruction += f"\n- 사용자 프로필: {profile_summary}"
     prompt = f"""당신은 한성대학교 공지사항 안내 도우미입니다.
 아래 공지사항 본문을 바탕으로 사용자 질문에 직접적이고 구체적으로 답변하세요.
 - 날짜, 금액, 조건 등 구체적인 정보가 있으면 반드시 포함하세요.
 - "공지를 참고하세요" 같은 말은 절대 하지 마세요.
 - 2~3문장으로 간결하게 답변하세요.
 - 답변 시작: "{greeting}"
+{personalization_instruction}
 
 [공지 본문]
 {context}
@@ -681,7 +693,7 @@ def render_chatbot(profile):
                 else:
                     st.markdown(f'<div class="chat-bubble-bot">{msg["content"]}</div>', unsafe_allow_html=True)
                     if msg.get("results"):
-                        for idx, r in enumerate(msg["results"][:5], start=1):
+                        for idx, r in enumerate(msg["results"][:3], start=1):
                             title_safe = html.escape(str(r.get("title", "")))
                             cat_safe   = html.escape(str(r.get("category", "기타")))
                             date_safe  = html.escape(str(r.get("date", "")))

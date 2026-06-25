@@ -1134,7 +1134,7 @@ async function sendChat() {
   if (welcome) welcome.remove();
 
   chatHistory.push({ role:'user', content:text });
-  appendBubble('user', text);
+  const questionEl = appendBubble('user', text);
   document.getElementById('chat-reset-btn').style.display = 'block';
 
   // 로딩
@@ -1146,7 +1146,8 @@ async function sendChat() {
     const res = await callChatAPI(text, cat);
     loadEl.remove();
     appendBubble('bot', res.reply);
-    if (res.results && res.results.length) renderRefCards(res.results.slice(0,5));
+    if (res.results && res.results.length) renderRefCards(res.results.slice(0,3));
+    requestAnimationFrame(() => scrollChatToElement(questionEl));
     chatHistory.push({ role:'bot', content:res.reply, results:res.results });
   } catch(e) {
     loadEl.remove();
@@ -1154,7 +1155,6 @@ async function sendChat() {
   }
 
   document.getElementById('chat-send-btn').disabled = false;
-  scrollChatBottom();
 }
 
 const API_BASE = 'http://localhost:8000';
@@ -1184,6 +1184,7 @@ function appendBubble(role, text) {
   el.textContent = text;
   body.appendChild(el);
   scrollChatBottom();
+  return el;
 }
 
 function appendTyping() {
@@ -1223,12 +1224,19 @@ function renderRefCards(results) {
       <a href="${escHtml(r.url||'#')}" target="_blank" class="ref-link">공지 바로가기 →</a>`;
     body.appendChild(el);
   });
-  scrollChatBottom();
 }
 
 function scrollChatBottom() {
   const body = document.getElementById('chat-body');
   body.scrollTop = body.scrollHeight;
+}
+
+function scrollChatToElement(el) {
+  if (!el) return;
+  const body = document.getElementById('chat-body');
+  const bodyTop = body.getBoundingClientRect().top;
+  const elTop = el.getBoundingClientRect().top;
+  body.scrollTop = Math.max(0, body.scrollTop + elTop - bodyTop - 16);
 }
 
 function resetChat() {

@@ -17,7 +17,7 @@ from .config import (
     INDEX_MANIFEST_PATH, NOTICES_CACHE_PATH,
     VECTOR_DB, PINECONE_API_KEY, PINECONE_INDEX_NAME, PINECONE_CLOUD,
     PINECONE_REGION, PINECONE_NAMESPACE, PINECONE_CACHE_PATH, EMBEDDING_DIM,
-    CHUNK_SIZE, CHUNK_OVERLAP,
+    CHUNK_SIZE, CHUNK_OVERLAP, EMBEDDING_DEVICE,
 )
 from .utils import infer_category, chunk_text
 
@@ -132,6 +132,8 @@ def _release_torch_cache() -> None:
 
 def _best_device() -> str:
     import torch
+    if EMBEDDING_DEVICE:
+        return EMBEDDING_DEVICE
     if torch.backends.mps.is_available():
         return "mps"
     if torch.cuda.is_available():
@@ -223,7 +225,10 @@ def _metadata_matches(meta: dict | None, where: dict | None) -> bool:
 class PineconeCollectionAdapter:
     """Small collection facade over Pinecone plus a local chunk cache for BM25."""
 
-    FETCH_BATCH_SIZE = 100
+    FETCH_BATCH_SIZE = 50
+    UPSERT_BATCH_SIZE = 50
+    MAX_UPSERT_RETRIES = 3
+    MAX_FETCH_RETRIES = 3
     DELETE_BATCH_SIZE = 1000
 
     def __init__(self, index, namespace: str, cache_path: str) -> None:
@@ -256,6 +261,41 @@ class PineconeCollectionAdapter:
     def _clean_metadata(meta: dict | None) -> dict:
         return {k: v for k, v in (meta or {}).items() if v is not None}
 
+    def _upsert_with_retry(self, vectors: list[dict]) -> None:
+        for attempt in range(1, self.MAX_UPSERT_RETRIES + 1):
+            try:
+                self.index.upsert(vectors=vectors, namespace=self.namespace)
+                return
+            except Exception as exc:
+                if attempt >= self.MAX_UPSERT_RETRIES:
+                    raise
+                wait_seconds = 2 ** (attempt - 1)
+                logger.warning(
+                    "Pinecone upsert failed (%s/%s): %s; retrying in %ss",
+                    attempt,
+                    self.MAX_UPSERT_RETRIES,
+                    exc,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+
+    def _fetch_with_retry(self, ids: list[str]):
+        for attempt in range(1, self.MAX_FETCH_RETRIES + 1):
+            try:
+                return self.index.fetch(ids=ids, namespace=self.namespace)
+            except Exception as exc:
+                if attempt >= self.MAX_FETCH_RETRIES:
+                    raise
+                wait_seconds = 2 ** (attempt - 1)
+                logger.warning(
+                    "Pinecone fetch failed (%s/%s): %s; retrying in %ss",
+                    attempt,
+                    self.MAX_FETCH_RETRIES,
+                    exc,
+                    wait_seconds,
+                )
+                time.sleep(wait_seconds)
+
     def count(self) -> int:
         try:
             stats = self.index.describe_index_stats()
@@ -279,7 +319,8 @@ class PineconeCollectionAdapter:
             vectors.append({"id": id_, "values": embedding, "metadata": {**meta, "document": document}})
             cache[id_] = {"document": document, "metadata": meta}
         if vectors:
-            self.index.upsert(vectors=vectors, namespace=self.namespace)
+            for start in range(0, len(vectors), self.UPSERT_BATCH_SIZE):
+                self._upsert_with_retry(vectors[start : start + self.UPSERT_BATCH_SIZE])
             self._save_cache()
 
     def update(self, ids: list[str], embeddings: list, documents: list[str], metadatas: list[dict]) -> None:
@@ -289,7 +330,13 @@ class PineconeCollectionAdapter:
         if not ids:
             return
         for start in range(0, len(ids), self.DELETE_BATCH_SIZE):
-            self.index.delete(ids=ids[start : start + self.DELETE_BATCH_SIZE], namespace=self.namespace)
+            try:
+                self.index.delete(ids=ids[start : start + self.DELETE_BATCH_SIZE], namespace=self.namespace)
+            except Exception as exc:
+                if "Namespace not found" not in str(exc):
+                    raise
+                logger.info("Pinecone namespace '%s' does not exist yet; skipping stale delete.", self.namespace)
+                break
         cache = self._load_cache()
         changed = False
         for id_ in ids:
@@ -314,7 +361,7 @@ class PineconeCollectionAdapter:
             vectors = {}
             for start in range(0, len(ids), self.FETCH_BATCH_SIZE):
                 batch_ids = ids[start : start + self.FETCH_BATCH_SIZE]
-                fetch_response = self.index.fetch(ids=batch_ids, namespace=self.namespace) if batch_ids else None
+                fetch_response = self._fetch_with_retry(batch_ids) if batch_ids else None
                 batch_vectors = getattr(fetch_response, "vectors", None) if fetch_response is not None else {}
                 if batch_vectors is None and isinstance(fetch_response, dict):
                     batch_vectors = fetch_response.get("vectors", {})
@@ -640,6 +687,7 @@ def index_notices(
         total_batches = (len(pending) + notice_batch_size - 1) // notice_batch_size
 
         notice_chunks: list[tuple[str, str, list[str], list[str], list[dict]]] = []
+        batch_delete_ids: list[str] = []
         docs: list[str] = []
 
         for doc_id, content_hash, item in batch:
@@ -648,7 +696,7 @@ def index_notices(
             if not ids_to_delete:
                 ids_to_delete = existing_ids_by_url.get(item["url"], [])
             if ids_to_delete:
-                collection.delete(ids=ids_to_delete)
+                batch_delete_ids.extend(ids_to_delete)
 
             body     = item.get("body", "")
             inferred_category = classify_notice(item["title"], body)
@@ -666,6 +714,9 @@ def index_notices(
                 (doc_id, content_hash, chunk_ids, chunks, [meta] * len(chunks))
             )
             docs.extend(chunks)
+
+        if batch_delete_ids:
+            collection.delete(ids=list(dict.fromkeys(batch_delete_ids)))
 
         logger.info(
             "공지 배치 인코딩 시작: %d/%d 배치 (%d개 공지, %d개 청크, device=%s, embed_batch=%d)",

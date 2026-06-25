@@ -1,10 +1,6 @@
 name: Crawl Hansung notices
 
 on:
-  schedule:
-    # KST Mon-Fri 09:17-17:17 == UTC Mon-Fri 00:17-08:17.
-    # GitHub Actions scheduled events are best-effort and can be delayed a few minutes.
-    - cron: "17 0-8 * * 1-5"
   workflow_dispatch:
 
 jobs:

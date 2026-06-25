@@ -14,8 +14,9 @@ VECTOR_DB           = os.getenv("VECTOR_DB", "pinecone").lower()
 EMBED_MODEL_PATH    = os.path.join(_BASE_DIR, "models", "embed_finetuned")
 SUMMARY_MODEL_PATH  = os.path.join(_BASE_DIR, "models", "summary_finetuned")
 CLASSIFY_MODEL_PATH = os.path.join(_BASE_DIR, "models", "classify_finetuned")
-BASE_MODEL_EMBED    = os.getenv("BASE_MODEL_EMBED", "jhgan/ko-sroberta-multitask")
+BASE_MODEL_EMBED    = os.getenv("BASE_MODEL_EMBED", "BAAI/bge-m3")
 EMBEDDER_BACKEND    = os.getenv("EMBEDDER_BACKEND", "sentence-transformers").lower()
+EMBEDDING_DEVICE    = os.getenv("EMBEDDING_DEVICE", "").strip().lower()
 SIMCSE_POOLING      = os.getenv("SIMCSE_POOLING", "cls").lower()
 SEARCH_ALPHA        = float(os.getenv("SEARCH_ALPHA", "0.5"))
 VECTOR_STATE_PATH   = os.getenv(
@@ -26,7 +27,7 @@ INDEX_MANIFEST_PATH = os.path.join(VECTOR_STATE_PATH, "index_manifest.json")
 NOTICES_CACHE_PATH  = os.path.join(_BASE_DIR, "data", "data_2026.json")
 
 PINECONE_API_KEY    = os.getenv("PINECONE_API_KEY")
-PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "hansung-notices")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "hansung-notices-bge-m3")
 PINECONE_CLOUD      = os.getenv("PINECONE_CLOUD", "aws")
 PINECONE_REGION     = os.getenv("PINECONE_REGION", "us-east-1")
 PINECONE_NAMESPACE  = os.getenv("PINECONE_NAMESPACE", "prod")
@@ -34,7 +35,7 @@ PINECONE_CACHE_PATH = os.getenv(
     "PINECONE_CACHE_PATH",
     os.path.join(VECTOR_STATE_PATH, "pinecone_chunks.json"),
 )
-EMBEDDING_DIM       = int(os.getenv("EMBEDDING_DIM", "768"))
+EMBEDDING_DIM       = int(os.getenv("EMBEDDING_DIM", "1024"))
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 GEMINI_API_KEY_PAID_TIER = os.getenv("GEMINI_API_KEY_PAID_TIER")
@@ -54,7 +55,7 @@ BOARD_LIST_URL = "https://www.hansung.ac.kr/bbs/hansung/2127/artclList.do"
 HEADERS        = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 TARGET_YEAR    = str(datetime.now().year)
 
-CHUNK_SIZE    = 600
+CHUNK_SIZE    = 500
 CHUNK_OVERLAP = 80
 
 CATEGORIES = [

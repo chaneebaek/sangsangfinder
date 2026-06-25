@@ -286,7 +286,7 @@ async def chat(req: ChatRequest):
     if reranker_warning:
         logger.warning("LLM 연결에 실패하여 규칙 기반으로 계산한 결과입니다.")
     notices = []
-    for r in results:
+    for r in results[:3]:
         notices.append({
             "title":    r.get("title", ""),
             "category": r.get("category", ""),
