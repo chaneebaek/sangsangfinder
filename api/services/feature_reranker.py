@@ -58,6 +58,7 @@ def rerank_notices(
     rerank_window: int = 20,
     relevance_floor_ratio: float = 0.85,
     max_feature_boost: float = 0.06,
+    gemini_api_key: str | None = None,
 ) -> list[dict]:
     """Return the top-k notices after feature soft boosts."""
     if not notices:
@@ -65,7 +66,7 @@ def rerank_notices(
 
     today = today or date.today()
     profile = profile or {}
-    features_by_key = extract_notice_features(notices)
+    features_by_key = extract_notice_features(notices, gemini_api_key=gemini_api_key)
     max_recency_date = _max_posted_date(notices)
     top_base_score = max((_safe_float(notice.get("score"), default=0.0) for notice in notices), default=0.0)
     relevance_floor = top_base_score * _bounded(relevance_floor_ratio, 0.0, 1.0)
@@ -107,8 +108,12 @@ def rerank_notices(
     return reranked[:top_k]
 
 
-def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
+def extract_notice_features(
+    notices: list[dict],
+    gemini_api_key: str | None = None,
+) -> dict[str, dict[str, Any]]:
     cache = _load_cache()
+    api_key = gemini_api_key or GEMINI_API_KEY_PAID_TIER
     result: dict[str, dict[str, Any]] = {}
     missing: list[dict] = []
     cache_hits = 0
@@ -124,7 +129,7 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
             should_retry_failed_cache = (
                 cached_failed
                 and GEMINI_FEATURE_EXTRACTION_ENABLED
-                and bool(GEMINI_API_KEY_PAID_TIER)
+                and bool(api_key)
             )
             if should_retry_failed_cache:
                 stale_failed += 1
@@ -143,7 +148,7 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
     )
 
     if missing:
-        extracted = _extract_with_gemini(missing)
+        extracted = _extract_with_gemini(missing, gemini_api_key=api_key)
         changed = False
         for notice in missing:
             key = _notice_key(notice)
@@ -162,8 +167,12 @@ def extract_notice_features(notices: list[dict]) -> dict[str, dict[str, Any]]:
     return result
 
 
-def _extract_with_gemini(notices: list[dict]) -> dict[str, dict[str, Any]]:
-    if not GEMINI_FEATURE_EXTRACTION_ENABLED or not GEMINI_API_KEY_PAID_TIER:
+def _extract_with_gemini(
+    notices: list[dict],
+    gemini_api_key: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    api_key = gemini_api_key or GEMINI_API_KEY_PAID_TIER
+    if not GEMINI_FEATURE_EXTRACTION_ENABLED or not api_key:
         print(
             "[feature-reranker] Gemini feature 추출 비활성/키 없음, fallback 사용: "
             f"count={len(notices)} enabled={GEMINI_FEATURE_EXTRACTION_ENABLED}",
@@ -185,7 +194,7 @@ def _extract_with_gemini(notices: list[dict]) -> dict[str, dict[str, Any]]:
         try:
             batch_started_at = perf_counter()
             response_text = generate_content_text(
-                api_key=GEMINI_API_KEY_PAID_TIER,
+                api_key=api_key,
                 prompt=prompt,
                 model=GEMINI_FEATURE_MODEL,
                 timeout=GEMINI_FEATURE_TIMEOUT_SECONDS,

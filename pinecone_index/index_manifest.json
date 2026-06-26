@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "revision": 419,
+  "revision": 420,
   "index_config": {
     "signature": "dfa98d681d748011dbdbe2d44531eed6c4fb6af55d59e5f92abc5be7e4f60269",
     "embedding_model": "BAAI/bge-m3",
@@ -18655,6 +18655,23 @@
       "index_config_signature": "dfa98d681d748011dbdbe2d44531eed6c4fb6af55d59e5f92abc5be7e4f60269",
       "chunk_ids": [
         "ab18c97f3769d886c86bec4c3f4c3d6d_0"
+      ]
+    },
+    "13c4573e732267c68bcd372f4b4b96e0": {
+      "content_hash": "9f25c7ae3c7f8253c0f0057d7ac0b89a361f46964416747df6105c590523e9e5",
+      "index_config_signature": "dfa98d681d748011dbdbe2d44531eed6c4fb6af55d59e5f92abc5be7e4f60269",
+      "chunk_ids": [
+        "13c4573e732267c68bcd372f4b4b96e0_0",
+        "13c4573e732267c68bcd372f4b4b96e0_1"
+      ]
+    },
+    "bacc8f3fc55202ff362d8058e30c78aa": {
+      "content_hash": "d7f02dbe98d6bf865d0180db25f71fab0fb6a2256caee1b55108f844df0f9f4e",
+      "index_config_signature": "dfa98d681d748011dbdbe2d44531eed6c4fb6af55d59e5f92abc5be7e4f60269",
+      "chunk_ids": [
+        "bacc8f3fc55202ff362d8058e30c78aa_0",
+        "bacc8f3fc55202ff362d8058e30c78aa_1",
+        "bacc8f3fc55202ff362d8058e30c78aa_2"
       ]
     }
   }

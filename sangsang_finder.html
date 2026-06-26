@@ -758,6 +758,7 @@ function buildSteps() {
   return [
     { id:'welcome' },
     { id:'name' },
+    { id:'gemini' },
     { id:'track' },
     { id:'interests' },
     { id:'phone' },
@@ -806,6 +807,7 @@ function showStep(idx) {
     const msgMap = {
       welcome:     { icon_img: 'images/icon_상상부기.png', html: '<strong>상상파인더에 오신 걸 환영합니다!</strong><br>여러분의 공지를 책임져드릴게요.' },
       name:        { icon_img: 'images/icon_상상부기.png', html: '먼저 <strong>이름</strong>을 알려주실 수 있나요?' },
+      gemini:      { icon_img: 'images/icon_상상부기.png', html: '공지 검색 답변 생성을 위해<br><strong>Gemini API Key</strong>를 입력해주세요.' },
       track:       { icon_img: 'images/icon_한성냥이.png', html: '<strong>트랙/학과 정보</strong>도 알려주세요!' },
       interests:   { icon_img: 'images/icon_상찌.png', html: '<strong>관심사</strong>도 골라주세요. (복수 선택 가능)' },
       scholarship: { icon_img: 'images/icon_상찌.png', html: '장학금 맞춤 추천을 위해 <strong>조금만 더</strong> 알려주세요!' },
@@ -864,6 +866,19 @@ function showStep(idx) {
         requestAnimationFrame(() => inp.classList.add('visible'));
         setTimeout(() => document.getElementById('ob-name').focus(), 150);
         document.getElementById('ob-name').addEventListener('keydown', e => { if(e.key==='Enter') submitName(); });
+
+      } else if (step.id === 'gemini') {
+        inp.innerHTML = `
+          <input class="ob-input" id="ob-gemini-api-key" type="password" placeholder="Gemini API Key" autocomplete="off" value="${OB.data.gemini_api_key||''}"/>
+          <div style="font-size:11px;color:var(--text-hint);line-height:1.5;margin-top:8px;">
+            입력한 키는 이 브라우저에 저장되고, 답변 생성 요청 때 서버로 함께 전송됩니다.
+          </div>
+          <div class="ob-err" id="ob-gemini-err"></div>
+          <button class="ob-next-btn" onclick="submitGeminiKey()">다음 →</button>`;
+        inpArea.appendChild(inp);
+        requestAnimationFrame(() => inp.classList.add('visible'));
+        setTimeout(() => document.getElementById('ob-gemini-api-key').focus(), 150);
+        document.getElementById('ob-gemini-api-key').addEventListener('keydown', e => { if(e.key==='Enter') submitGeminiKey(); });
 
       } else if (step.id === 'track') {
         const colOpts = Object.keys(COLLEGE_MAP).map(c =>
@@ -978,6 +993,18 @@ function submitName() {
   nextStep();
 }
 
+function submitGeminiKey() {
+  const input = document.getElementById('ob-gemini-api-key');
+  const val = (input?.value || '').trim();
+  if (!val) {
+    document.getElementById('ob-gemini-err').textContent = 'Gemini API Key를 입력해주세요.';
+    input?.focus();
+    return;
+  }
+  OB.data.gemini_api_key = val;
+  nextStep();
+}
+
 function submitTrack() {
   OB.data.college = document.getElementById('ob-college').value;
   OB.data.track   = document.getElementById('ob-track').value;
@@ -1025,6 +1052,7 @@ function submitAll() {
     dorm_interest:[...OB.selectedDorms],
     rotc_interest: document.getElementById('ob-rotc')?.checked||false,
     phone,
+    gemini_api_key: OB.data.gemini_api_key||'',
   };
   localStorage.setItem('sf_profile', JSON.stringify(profile));
   // Supabase users 테이블에 바로 저장
@@ -1157,7 +1185,7 @@ async function sendChat() {
   document.getElementById('chat-send-btn').disabled = false;
 }
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = '';
 
 async function callChatAPI(query, category) {
   const res = await fetch(`${API_BASE}/api/chat`, {
@@ -1434,6 +1462,9 @@ function resetApp() {
       <div class="field" style="margin-bottom:14px;"><label>트랙 / 학과</label>
         <select class="ob-select" id="edit-track" style="width:100%;padding:12px 10px;">${trkOpts}</select></div>
 
+      <div class="field" style="margin-bottom:14px;"><label>Gemini API Key</label>
+        <input class="ob-input" id="edit-gemini-api-key" type="password" autocomplete="off" value="${profile.gemini_api_key||''}"/></div>
+
       <div class="field" style="margin-bottom:6px;"><label>관심사</label></div>
       <div class="multi-chips" id="edit-interests" style="margin-bottom:4px;">${interestChips}</div>
 
@@ -1515,6 +1546,7 @@ function saveEditProfile() {
   profile.college       = document.getElementById('edit-college').value;
   profile.track         = document.getElementById('edit-track').value;
   profile.grade         = document.getElementById('edit-grade').value;
+  profile.gemini_api_key = document.getElementById('edit-gemini-api-key')?.value.trim() || profile.gemini_api_key || '';
   profile.interests     = interests;
   profile.income_level  = document.getElementById('edit-income')?.value  ?? profile.income_level;
   profile.gpa           = document.getElementById('edit-gpa')?.value     ?? profile.gpa;

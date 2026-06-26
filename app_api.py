@@ -261,6 +261,7 @@ class Profile(BaseModel):
     dorm_interest: list[str] = []
     rotc_interest: bool = False
     phone: Optional[str] = None
+    gemini_api_key: Optional[str] = None
 
 class ChatRequest(BaseModel):
     query: str

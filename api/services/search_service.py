@@ -377,8 +377,16 @@ def _extract_json_object(text: str) -> dict | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _route_query_with_gemini(query: str) -> dict:
-    if not GEMINI_API_KEY:
+def _profile_gemini_api_key(profile: dict | None) -> str | None:
+    if not profile:
+        return None
+    value = str(profile.get("gemini_api_key") or "").strip()
+    return value or None
+
+
+def _route_query_with_gemini(query: str, gemini_api_key: str | None = None) -> dict:
+    api_key = gemini_api_key or GEMINI_API_KEY
+    if not api_key:
         normalized = _normalize_user_query(query)
         intent, confidence = _heuristic_intent(normalized)
         features = _build_query_features(query, normalized, intent)
@@ -412,7 +420,7 @@ JSON만 반환:
 
 사용자 질문: {query}"""
         response_text = generate_content_text(
-            api_key=GEMINI_API_KEY,
+            api_key=api_key,
             prompt=prompt,
             timeout=GEMINI_ROUTER_TIMEOUT_SECONDS,
             temperature=0,
@@ -828,7 +836,8 @@ def _routed_candidates_before_feature_rerank(
             item["query_routing"] = diagnostics
         return search_query, candidates, diagnostics
 
-    route = _apply_personalization_to_route(_route_query_with_gemini(query), query, profile)
+    profile_api_key = _profile_gemini_api_key(profile)
+    route = _apply_personalization_to_route(_route_query_with_gemini(query, profile_api_key), query, profile)
     search_query = route.get("search_query") or query
     candidate_limit = max(top_k, candidate_k or top_k)
     routed_alpha = ROUTED_ALPHA.get(route["intent"], DEFAULT_ALPHA)
@@ -956,7 +965,12 @@ def hybrid_search(
         )
         hybrid_elapsed_ms = (perf_counter() - search_started_at) * 1000
         rerank_started_at = perf_counter()
-        reranked = rerank_notices(candidates, profile=profile or {}, top_k=top_k)
+        reranked = rerank_notices(
+            candidates,
+            profile=profile or {},
+            top_k=top_k,
+            gemini_api_key=_profile_gemini_api_key(profile),
+        )
         rerank_elapsed_ms = (perf_counter() - rerank_started_at) * 1000
         total_elapsed_ms = (perf_counter() - search_started_at) * 1000
         for item in reranked:
@@ -1001,7 +1015,8 @@ def generate_llm_reply(
     profile: dict,
     is_first: bool = False,
 ) -> str:
-    if not GEMINI_API_KEY_PAID_TIER:
+    api_key = _profile_gemini_api_key(profile) or GEMINI_API_KEY_PAID_TIER
+    if not api_key:
         if results:
             return f"총 {len(results)}개의 관련 공지를 찾았습니다."
         return "관련 공지를 찾지 못했습니다. GEMINI_API_KEY_PAID_TIER를 설정해 주세요."
@@ -1051,7 +1066,7 @@ def generate_llm_reply(
     try:
         reply_started_at = perf_counter()
         response_text = generate_content_text(
-            api_key=GEMINI_API_KEY_PAID_TIER,
+            api_key=api_key,
             prompt=prompt,
             timeout=GEMINI_REPLY_TIMEOUT_SECONDS,
         )
