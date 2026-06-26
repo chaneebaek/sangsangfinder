@@ -1,0 +1,187 @@
+{
+  "version": 1,
+  "generated_at": "2026-06-04T00:20:12",
+  "source": {
+    "backend": "supabase",
+    "table": "notices",
+    "source": "hansung",
+    "year": 2026,
+    "candidate_notice_count": 80,
+    "min_body_chars": 250
+  },
+  "pipeline": {
+    "stages": [
+      "generation",
+      "validation"
+    ],
+    "independence": "separate Gemini calls with separate agent prompts and no shared chat history",
+    "api_key_env": "GEMINI_API_KEY_PAID_TIER",
+    "model": "gemini-2.5-flash",
+    "generator_session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368",
+    "validator_session_id": "validator-d7634b9437994a9dba9299510f3405ba"
+  },
+  "ground_truth": {
+    "field": "gt_url",
+    "matching": "url",
+    "reason": "URL matching is robust to title duplicates and chunked Pinecone storage."
+  },
+  "qa_count": 5,
+  "qas": [
+    {
+      "id": "supabase2026_n3860_qa36d42f2f",
+      "question": "에볼라 주요 발생국이 어디야?",
+      "answer": "에볼라 발생의 주요발생국은 서아프리카 지역의 라이베리아, 기니, 시에라리온입니다.",
+      "type": "factual",
+      "source_span": "최근 에볼라 발생의 주요발생국은 서아프리카 지역의 라이베리아, 기 니, 시에라리온입니다.",
+      "gt_url": "https://www.hansung.ac.kr/bbs/hansung/2127/222661/artclView.do",
+      "notice_url": "https://www.hansung.ac.kr/bbs/hansung/2127/222661/artclView.do",
+      "notice_db_id": 3860,
+      "notice_id": "222661",
+      "notice_title": "코로나19에볼라바이러스병 확산방지 및 감염 예방수칙 안내새글",
+      "posted_at": "2026-06-02",
+      "category": "학사행정",
+      "body_sha256_16": "4d6f2df5027bb489",
+      "generation": {
+        "model": "gemini-2.5-flash",
+        "agent": "generator",
+        "session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368"
+      },
+      "validation": {
+        "model": "gemini-2.5-flash",
+        "agent": "validator",
+        "session_id": "validator-d7634b9437994a9dba9299510f3405ba",
+        "verdict": "pass",
+        "score": 5,
+        "grounded": true,
+        "type_correct": true,
+        "source_span_supported": true,
+        "reason": "답변이 공지 본문에 명확하게 근거하고 있으며, source_span이 답변을 완벽하게 지지합니다. 질문은 공지에서 직접 답변 가능하며, QA 유형(factual)도 질문 스타일에 적합합니다. URL도 정확합니다."
+      }
+    },
+    {
+      "id": "supabase2026_n73_qafb1fdd58",
+      "question": "학외 인사 참관인 어떻게 신청해?",
+      "answer": "제출서류(지원서, 개인정보 수집·이용 동의서)를 이메일(kyohan7@hansung.kr)로 제출해야 해. 메일 제목은 “한성대학교 학외인사 참관인 지원(본인 성명)”으로 작성해야 해.",
+      "type": "procedural",
+      "source_span": "신청방법: 제출서류를 이메일(kyohan7@hansung.kr)로 제출 - 제출서류: 지원서, 개인정보 수집·이용 동의서 ※ 메일 제목: “한성대학교 학외인사 참관인 지원(성명)”으로 작성",
+      "gt_url": "https://www.hansung.ac.kr/bbs/hansung/2127/221573/artclView.do",
+      "notice_url": "https://www.hansung.ac.kr/bbs/hansung/2127/221573/artclView.do",
+      "notice_db_id": 73,
+      "notice_id": "221573",
+      "notice_title": "한성공지한성대학교 학생부종합전형 평가과정 학외 인사 참관인 모집 공고",
+      "posted_at": "2026-04-15",
+      "category": "대외활동",
+      "body_sha256_16": "a3ebe3a458da8f09",
+      "generation": {
+        "model": "gemini-2.5-flash",
+        "agent": "generator",
+        "session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368"
+      },
+      "validation": {
+        "model": "gemini-2.5-flash",
+        "agent": "validator",
+        "session_id": "validator-d7634b9437994a9dba9299510f3405ba",
+        "verdict": "pass",
+        "score": 5,
+        "grounded": true,
+        "type_correct": true,
+        "source_span_supported": true,
+        "reason": "답변은 공지 본문에 완전히 근거하며, 제공된 source_span이 답변을 완벽하게 뒷받침합니다. 질문은 공지에서 명확하게 답변 가능하며, 질문 유형(절차형)도 적절합니다. URL도 정확합니다."
+      }
+    },
+    {
+      "id": "supabase2026_n3179_qa16b57f42",
+      "question": "계약 끝나면 재계약도 가능해?",
+      "answer": "네, 최초 계약 종료 전 평가절차를 통해 1년 단위 재계약이 가능하며, 총 RISE 사업 운영 기간 이내(최대 4년)까지 가능합니다.",
+      "type": "conditional",
+      "source_span": "재계약 : 최초 계약 종료 전 평가절차를 통해 1 년 단위 재계약 가능 ※ 단 , 총 RISE 사업 운영 기간 이내 ( 최대 4 년 )",
+      "gt_url": "https://www.hansung.ac.kr/bbs/hansung/2127/220712/artclView.do",
+      "notice_url": "https://www.hansung.ac.kr/bbs/hansung/2127/220712/artclView.do",
+      "notice_db_id": 3179,
+      "notice_id": "220712",
+      "notice_title": "[채용] 한성대학교 서울RISE사업단 임시직 채용 공고",
+      "posted_at": "2026-03-13",
+      "category": "취업/채용",
+      "body_sha256_16": "0060fa6ba013faa6",
+      "generation": {
+        "model": "gemini-2.5-flash",
+        "agent": "generator",
+        "session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368"
+      },
+      "validation": {
+        "model": "gemini-2.5-flash",
+        "agent": "validator",
+        "session_id": "validator-d7634b9437994a9dba9299510f3405ba",
+        "verdict": "pass",
+        "score": 5,
+        "grounded": true,
+        "type_correct": true,
+        "source_span_supported": true,
+        "reason": "답변은 공지 본문에 명확히 명시된 재계약 조건에 근거하며, 소스 스팬이 답변을 완벽하게 지지합니다. 질문은 해당 공지에서 명확히 답변 가능하며, QA 유형(conditional)도 질문 스타일에 적합합니다."
+      }
+    },
+    {
+      "id": "supabase2026_n3330_qa8f9a8edb",
+      "question": "IPP 교과목도 우수강좌로 선정될 수 있어?",
+      "answer": "아니, IPP, 학군단, 외부사이버 교과목 등은 수업평가 우수강좌에서 제외돼.",
+      "type": "user_short",
+      "source_span": "IPP,학군단,외부사이버 교과목, 수업평가 제외 과목, 현장실습 관련 과목 제외",
+      "gt_url": "https://www.hansung.ac.kr/bbs/hansung/2127/219692/artclView.do",
+      "notice_url": "https://www.hansung.ac.kr/bbs/hansung/2127/219692/artclView.do",
+      "notice_db_id": 3330,
+      "notice_id": "219692",
+      "notice_title": "2025학년도 2학기 수업평가 우수강좌 공지",
+      "posted_at": "2026-02-10",
+      "category": "학사행정",
+      "body_sha256_16": "4091a16e1793eddc",
+      "generation": {
+        "model": "gemini-2.5-flash",
+        "agent": "generator",
+        "session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368"
+      },
+      "validation": {
+        "model": "gemini-2.5-flash",
+        "agent": "validator",
+        "session_id": "validator-d7634b9437994a9dba9299510f3405ba",
+        "verdict": "pass",
+        "score": 5,
+        "grounded": true,
+        "type_correct": true,
+        "source_span_supported": true,
+        "reason": "질문과 답변이 공지 본문에 명확히 근거하며, 소스 스팬도 정확하고, 질문 유형도 적절합니다."
+      }
+    },
+    {
+      "id": "supabase2026_n3621_qaf716d97c",
+      "question": "병무청 민원상담소 전화번호가 뭐야?",
+      "answer": "1588-9090이야.",
+      "type": "factual",
+      "source_span": "병무청 민원상담소( 1588-9090)",
+      "gt_url": "https://www.hansung.ac.kr/bbs/hansung/2127/222458/artclView.do",
+      "notice_url": "https://www.hansung.ac.kr/bbs/hansung/2127/222458/artclView.do",
+      "notice_db_id": 3621,
+      "notice_id": "222458",
+      "notice_title": "한성공지2026년 6월 각 군 현역병 모집계획",
+      "posted_at": "2026-05-22",
+      "category": "ROTC",
+      "body_sha256_16": "e49810944ae11001",
+      "generation": {
+        "model": "gemini-2.5-flash",
+        "agent": "generator",
+        "session_id": "generator-1551fde4fa6b404fa4fc103f9a7ae368"
+      },
+      "validation": {
+        "model": "gemini-2.5-flash",
+        "agent": "validator",
+        "session_id": "validator-d7634b9437994a9dba9299510f3405ba",
+        "verdict": "pass",
+        "score": 5,
+        "grounded": true,
+        "type_correct": true,
+        "source_span_supported": true,
+        "reason": "답변이 공지 본문에 명확히 근거하며, source_span이 답변을 정확히 지지합니다. 질문은 해당 공지에서 직접 답변 가능하며, QA 유형도 사실적 질문에 부합합니다."
+      }
+    }
+  ],
+  "rejected_preview": []
+}

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.sangsangfinder.crawler</string>
+
+    <!--
+      ProgramArguments: 첫 번째 항목이 실행 파일, 나머지가 인수
+      .venv311/bin/python 이 없으면 `which python` 결과로 교체
+    -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/mac/Projects/sangsangfinder/.venv311/bin/python</string>
+        <string>/Users/mac/Projects/sangsangfinder/crawling/auto_crawler.py</string>
+        <string>--storage</string>
+        <string>supabase</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/mac/Projects/sangsangfinder</string>
+
+    <!-- 1시간마다 실행 시도. 업무시간(평일 9-18시) 체크는 auto_crawler.py 코드 레벨에서 처리 -->
+    <key>StartInterval</key>
+    <integer>3600</integer>
+
+    <!-- 로드 즉시 1회 실행 (맥 재시작/절전 복귀 후 바로 반영) -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- stdout/stderr 를 단일 파일로 합산 -->
+    <key>StandardOutPath</key>
+    <string>/Users/mac/Projects/sangsangfinder/crawling/launchd.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mac/Projects/sangsangfinder/crawling/launchd.log</string>
+
+    <!-- 비정상 종료 시 자동 재시작 하지 않음 (cron처럼 스케줄 기반으로만 실행) -->
+    <key>KeepAlive</key>
+    <false/>
+</dict>
+</plist>

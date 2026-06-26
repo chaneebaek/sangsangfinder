@@ -1,0 +1,1590 @@
+{
+  "generated_at": "2026-05-26T12:57:19",
+  "source": "data/reranker_mvp_scored_top50.json",
+  "query_count": 50,
+  "summary": [
+    {
+      "id": "q001",
+      "query": "해외봉사",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "해외봉사"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단장 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.877079
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.982873,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q002",
+      "query": "2026년에 학부생이 지원할 수 있는 해외봉사 모집 공지 알려줘",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": [
+            2026
+          ]
+        },
+        "entities": {
+          "years": [
+            2026
+          ],
+          "keywords": [
+            "해외봉사"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[인천인재평생교육진흥원] 대학생 해외봉사 장학생 모집",
+        "date": "2025.04.10",
+        "score": 1.027395
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.948415,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q003",
+      "query": "wfk 단원",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "WFK"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.992329
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.874,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q004",
+      "query": "대학생 해외봉사 중에 아직 신청 가능한 프로그램이 뭐가 있어?",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "해외봉사"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[인천인재평생교육진흥원] 대학생 해외봉사 장학생 모집",
+        "date": "2025.04.10",
+        "score": 0.901173
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.981555,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q005",
+      "query": "해외봉사 장학생",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "해외봉사",
+            "장학생"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[인천인재평생교육진흥원] 대학생 해외봉사 장학생 모집",
+        "date": "2025.04.10",
+        "score": 0.899161
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.949279,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q006",
+      "query": "한성대 학부생이 참여할 수 있는 청년 해외봉사단 모집 공지를 찾고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate",
+          "general_youth"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "해외봉사",
+            "봉사단"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.984737
+      },
+      "top_reranked": {
+        "title": "한성공지[대학사회봉사협의회] [해외봉사활동] 50기 WFK 청년봉사단 단원 모집 안내",
+        "date": "2026.04.21",
+        "score": 0.985,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q007",
+      "query": "장학금",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "교외장학금 2026년 상반기 (재)춘천인재육성장학재단 봄내장학생 선발 안내(4/8 마감)",
+        "date": "2026.03.25",
+        "score": 1.088966
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026년 (사)유쾌한반란 카카오뱅크 스칼라십 장학생 모집 안내(4/19 마감)",
+        "date": "2026.04.01",
+        "score": 0.837992,
+        "moved_from_rank": 4
+      }
+    },
+    {
+      "id": "q008",
+      "query": "이번 학기에 재학생이 신청할 수 있는 장학금 공지 보여줘",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.643001
+      },
+      "top_reranked": {
+        "title": "국가장학금 2026학년도 1학기 푸른등대 기부장학금 신규장학생 선발 안내(3/12 마감)",
+        "date": "2026.02.25",
+        "score": 0.962531,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q009",
+      "query": "국가장학금 신청",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "국가장학금",
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.953799
+      },
+      "top_reranked": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.881,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q010",
+      "query": "학부생 국가장학금 신청 기간이랑 제출해야 하는 서류를 알고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "국가장학금",
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "국가장학금 2026학년도 1학기 국가우수장학금(인문/예술) 학생 사전신청 안내(3/25 마감)",
+        "date": "2026.03.04",
+        "score": 0.833191
+      },
+      "top_reranked": {
+        "title": "국가장학금 2026학년도 1학기 주거안정장학금 2차 신청 안내(3/17 마감)",
+        "date": "2026.01.27",
+        "score": 0.897258,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q011",
+      "query": "근로장학생",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "근로장학",
+            "근로장학생",
+            "장학생"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "국가근로 2026학년도 1학기 국가근로장학금 사전교육자료 첨부",
+        "date": "2026.02.26",
+        "score": 0.776943
+      },
+      "top_reranked": {
+        "title": "국가근로 2026학년도 1학기 국가근로장학금 사전교육자료 첨부",
+        "date": "2026.02.26",
+        "score": 0.9525,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q012",
+      "query": "교내 근로장학생 모집 중인 공지 있으면 최신순으로 보고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "근로장학",
+            "근로장학생",
+            "장학생"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "국가근로2025학년도 하계방학 집중근로 희망근로지 신청 안내(5/29 마감)",
+        "date": "2025.05.27",
+        "score": 0.650454
+      },
+      "top_reranked": {
+        "title": "면학근로 2026학년도 1학기 면학근로장학생 신청 안내(2/9~2/18)",
+        "date": "2026.02.06",
+        "score": 0.988293,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q013",
+      "query": "기숙사",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "기숙사"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "[우촌학사] 2026학년도 1학기 생활관 입주자 모집 안내",
+        "date": "2026.01.16",
+        "score": 0.957854
+      },
+      "top_reranked": {
+        "title": "[우촌학사] 2026학년도 1학기 생활관 입주자 모집 안내",
+        "date": "2026.01.16",
+        "score": 0.901,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q014",
+      "query": "2026학년도 학부생 기숙사 신청 일정과 선발 결과 공지를 찾고 있어",
+      "query_profile": {
+        "action": "result",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": [
+            2026
+          ]
+        },
+        "entities": {
+          "years": [
+            2026
+          ],
+          "keywords": [
+            "기숙사"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 동소문행복기숙사 상시모집 안내",
+        "date": "2026.02.22",
+        "score": 1.005025
+      },
+      "top_reranked": {
+        "title": "[에피소드] 2026학년도 1학기 외부 임차기숙사 입사생 모집 안내",
+        "date": "2026.01.21",
+        "score": 0.700463,
+        "moved_from_rank": 5
+      }
+    },
+    {
+      "id": "q015",
+      "query": "생활관 비용",
+      "query_profile": {
+        "action": "guide",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "생활관"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "[상상빌리지]2026학년도 1학기 상상빌리지(행복기숙사) 정시모집 안내",
+        "date": "2026.02.03",
+        "score": 0.807791
+      },
+      "top_reranked": {
+        "title": "[우촌학사] 2026학년도 1학기 생활관 입주자 모집 안내",
+        "date": "2026.01.16",
+        "score": 0.95296,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q016",
+      "query": "이번 학기 생활관 입사비나 기숙사비 납부 관련 안내가 궁금해",
+      "query_profile": {
+        "action": "guide",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "기숙사",
+            "생활관"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "[상상빌리지]2026학년도 1학기 상상빌리지(행복기숙사) 추가모집 안내",
+        "date": "2026.02.23",
+        "score": 0.791143
+      },
+      "top_reranked": {
+        "title": "[우촌학사] 2026학년도 1학기 생활관 입주자 모집 안내",
+        "date": "2026.01.16",
+        "score": 0.798679,
+        "moved_from_rank": 5
+      }
+    },
+    {
+      "id": "q017",
+      "query": "수강신청",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "수강신청"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 0.988345
+      },
+      "top_reranked": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 0.783,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q018",
+      "query": "2026년 1학기 학부 수강신청 일정이랑 정정기간 공지 찾아줘",
+      "query_profile": {
+        "action": "schedule",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": [
+            2026
+          ]
+        },
+        "entities": {
+          "years": [
+            2026
+          ],
+          "keywords": [
+            "수강신청"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 수강신청 정보 안내(수정7)",
+        "date": "2026.02.05",
+        "score": 0.993596
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 폐강안내 및 폐강강좌 수강신청자 수강정정 안내",
+        "date": "2026.03.12",
+        "score": 0.66126,
+        "moved_from_rank": 4
+      }
+    },
+    {
+      "id": "q019",
+      "query": "수강정정",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "수강정정"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 1.001298
+      },
+      "top_reranked": {
+        "title": "교양교과목 수강신청 수강정원 안내",
+        "date": "2026.02.13",
+        "score": 0.793731,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q020",
+      "query": "수강신청을 놓쳤는데 학부생 수강정정이나 추가 신청 안내가 있는지 보고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "수강신청",
+            "수강정정"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 1.1125
+      },
+      "top_reranked": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 0.783,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q021",
+      "query": "계절학기",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "계절학기"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 수강신청 정보 안내(수정7)",
+        "date": "2026.02.05",
+        "score": 0.854828
+      },
+      "top_reranked": {
+        "title": "학사2025학년도 상상더학기 수강신청 안내",
+        "date": "2025.05.19",
+        "score": 0.723887,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q022",
+      "query": "여름 계절학기 수강신청 기간이랑 등록금 납부 일정을 알고 싶어",
+      "query_profile": {
+        "action": "schedule",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "수강신청",
+            "계절학기",
+            "등록금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 수강신청 정보 안내(수정7)",
+        "date": "2026.02.05",
+        "score": 0.946755
+      },
+      "top_reranked": {
+        "title": "학사2026학년도 여름계절학기 안내문(수정)",
+        "date": "2026.04.29",
+        "score": 0.678528,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q023",
+      "query": "등록금",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "등록금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 학기초과자 등록금 납부 안내",
+        "date": "2026.02.02",
+        "score": 0.993106
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.723315,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q024",
+      "query": "학부 재학생 등록금 납부기간이랑 분할납부 신청 방법 알려줘",
+      "query_profile": {
+        "action": "schedule",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "등록금",
+            "분할납부"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.960497
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.9245,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q025",
+      "query": "분할납부",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "분할납부"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 1.027473
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.8285,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q026",
+      "query": "등록금을 나눠서 내고 싶은데 학부생 분할납부 신청 공지가 있나?",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "등록금",
+            "분할납부"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 1.068061
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.8705,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q027",
+      "query": "휴학",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "휴학"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 휴·복학 신청 안내(2.2.~2.27.)",
+        "date": "2026.01.26",
+        "score": 0.904666
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026년 (사)맑고 향기롭게 7기 대학 장학생 선발 안내(4/14 마감)",
+        "date": "2026.03.17",
+        "score": 0.766764,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q028",
+      "query": "이번 학기에 일반휴학이나 군휴학 신청하려면 어떤 공지를 봐야 해?",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "휴학"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 휴·복학 신청 안내(2.2.~2.27.)",
+        "date": "2026.01.26",
+        "score": 1.064286
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 휴·복학 신청 안내(2.2.~2.27.)",
+        "date": "2026.01.26",
+        "score": 0.684,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q029",
+      "query": "복학 신청",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "복학"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 휴·복학 신청 안내(2.2.~2.27.)",
+        "date": "2026.01.26",
+        "score": 1.028063
+      },
+      "top_reranked": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.742418,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q030",
+      "query": "휴학 끝나고 복학하려는 학부생인데 복학 신청 기간 공지 찾아줘",
+      "query_profile": {
+        "action": "schedule",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "휴학",
+            "복학"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 휴·복학 신청 안내(2.2.~2.27.)",
+        "date": "2026.01.26",
+        "score": 0.827485
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 재학생 등록금 분할납부 안내",
+        "date": "2026.02.02",
+        "score": 0.813363,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q031",
+      "query": "졸업요건",
+      "query_profile": {
+        "action": "guide",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "졸업"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2027학년도 학석사연계과정 모집 공고",
+        "date": "2026.03.26",
+        "score": 0.978437
+      },
+      "top_reranked": {
+        "title": "2026학년도 편입생 설명회 자료배포 및 만족도조사 안내",
+        "date": "2026.02.26",
+        "score": 0.758364,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q032",
+      "query": "학부 졸업요건이랑 졸업인증 관련 최신 안내를 확인하고 싶어",
+      "query_profile": {
+        "action": "guide",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "졸업"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "학사2025학년도 전기(2026.2월) 졸업사정대상자 졸업사정 절차 및 일정 안내",
+        "date": "2025.09.26",
+        "score": 0.802621
+      },
+      "top_reranked": {
+        "title": "학사2025학년도 전기(2026.2월) 졸업사정대상자 졸업사정 절차 및 일정 안내",
+        "date": "2025.09.26",
+        "score": 0.878,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q033",
+      "query": "조기졸업",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "졸업",
+            "조기졸업"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 조기졸업 신청 안내",
+        "date": "2026.03.18",
+        "score": 1.053123
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 조기졸업 신청 안내",
+        "date": "2026.03.18",
+        "score": 0.77,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q034",
+      "query": "조기졸업 신청 가능한 조건이랑 신청 기간이 나온 공지를 찾고 있어",
+      "query_profile": {
+        "action": "schedule",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "졸업",
+            "조기졸업"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 조기졸업 신청 안내",
+        "date": "2026.03.18",
+        "score": 1.05321
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 조기졸업 신청 안내",
+        "date": "2026.03.18",
+        "score": 0.716,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q035",
+      "query": "복수전공",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "복수전공"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 수강신청 정보 안내(수정7)",
+        "date": "2026.02.05",
+        "score": 1.032682
+      },
+      "top_reranked": {
+        "title": "'26년도 전반기 67·68기 학군사관(ROTC) 후보생 모집",
+        "date": "2026.03.03",
+        "score": 0.684787,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q036",
+      "query": "복수전공이나 부전공 신청하려는 학부생이 봐야 할 최신 공지 알려줘",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "복수전공",
+            "부전공"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 복수·부전공 신청 및 변경신청 안내 (2.2.~2.6.)",
+        "date": "2026.01.26",
+        "score": 1.015355
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 복수·부전공 신청 및 변경신청 안내 (2.2.~2.6.)",
+        "date": "2026.01.26",
+        "score": 0.684,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q037",
+      "query": "전과 신청",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "전과"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 교차전부(과) 선발 안내",
+        "date": "2026.01.07",
+        "score": 0.694671
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 교차전부(과) 선발 안내",
+        "date": "2026.01.07",
+        "score": 0.881,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q038",
+      "query": "전과 신청 기간이랑 지원 자격이 정리된 학부 공지를 찾고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "전과"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 교차전부(과) 선발 안내",
+        "date": "2026.01.07",
+        "score": 0.680556
+      },
+      "top_reranked": {
+        "title": "학사2026학년도 2학기 일반 전부(과) 선발 안내",
+        "date": "2026.04.30",
+        "score": 0.962393,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q039",
+      "query": "교환학생",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "교환학생"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "교외장학금 2026년 미래에셋박현주재단 제35기 해외교환 장학생 선발 안내(4/15~4/21 마감)",
+        "date": "2026.03.06",
+        "score": 1.09
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026년 미래에셋박현주재단 제35기 해외교환 장학생 선발 안내(4/15~4/21 마감)",
+        "date": "2026.03.06",
+        "score": 0.881,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q040",
+      "query": "학부생 교환학생 모집 공지 중에 아직 지원 가능한 게 있는지 알려줘",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "교환학생"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "교외장학금 2026년 미래에셋박현주재단 제35기 해외교환 장학생 선발 안내(4/15~4/21 마감)",
+        "date": "2026.03.06",
+        "score": 1.09
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026년 미래에셋박현주재단 제35기 해외교환 장학생 선발 안내(4/15~4/21 마감)",
+        "date": "2026.03.06",
+        "score": 0.896,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q041",
+      "query": "토익 장학금",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.848837
+      },
+      "top_reranked": {
+        "title": "Stay & Study in school 장학사업 2026학년도 1학기 총장특별장학금 신청 안내",
+        "date": "2026.01.20",
+        "score": 0.881,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q042",
+      "query": "어학성적 제출하면 받을 수 있는 학부생 장학금이나 지원 프로그램 있어?",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "장학금"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 2학기 영어권 학기어학연수 및 1+1 프로그램 파견학생 선발안내",
+        "date": "2026.02.02",
+        "score": 0.790858
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 하계 영어권 온라인 어학연수 참가학생 선발안내",
+        "date": "2026.04.02",
+        "score": 0.978152,
+        "moved_from_rank": 2
+      }
+    },
+    {
+      "id": "q043",
+      "query": "현장실습",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "현장실습"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 IPP 현장실습생 추가모집 안내 -3월 실습시작-",
+        "date": "2026.02.06",
+        "score": 0.903034
+      },
+      "top_reranked": {
+        "title": "현장실습[더존비즈온] 2026학년도 하반기(7월 실습시작) 현장실습생 모집 안내",
+        "date": "2026.04.24",
+        "score": 0.833437,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q044",
+      "query": "방학 중 현장실습이나 인턴십 신청 가능한 공지를 최신순으로 보고 싶어",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "current_or_latest",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "현장실습",
+            "인턴십"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026학년도 1학기 IPP 현장실습생 추가모집 안내 -3월 실습시작-",
+        "date": "2026.01.30",
+        "score": 0.743314
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 IPP 현장실습생 추가모집 안내 -3월 실습시작-",
+        "date": "2026.01.30",
+        "score": 0.832,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q045",
+      "query": "취업 프로그램",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "취업"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "강소기업채용[12.10] 강소 및 교내 추천채용 리스트",
+        "date": "2025.12.10",
+        "score": 0.830738
+      },
+      "top_reranked": {
+        "title": "강소기업채용[12.10] 강소 및 교내 추천채용 리스트",
+        "date": "2025.12.10",
+        "score": 0.8485,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q046",
+      "query": "재학생이 참여할 수 있는 취업 특강이나 취업 캠프 모집 공지 찾아줘",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "취업",
+            "특강"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "한성공지2026학년도 전공트랙 진로 설명회 행사 안내새글",
+        "date": "2026.05.04",
+        "score": 0.829969
+      },
+      "top_reranked": {
+        "title": "2026학년도 1학기 전공(트랙)연계 협업형 진로·취업멘토링 참가자 모집 안내",
+        "date": "2026.04.03",
+        "score": 0.862057,
+        "moved_from_rank": 3
+      }
+    },
+    {
+      "id": "q047",
+      "query": "상담",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "상담"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "2026년 1학기 학생생활상담센터 개인상담&심리검사 안내",
+        "date": "2026.03.10",
+        "score": 1.09
+      },
+      "top_reranked": {
+        "title": "2026년 1학기 학생생활상담센터 개인상담&심리검사 안내",
+        "date": "2026.03.10",
+        "score": 0.8405,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q048",
+      "query": "학부생 심리상담이나 진로상담 신청 방법이 나온 공지가 궁금해",
+      "query_profile": {
+        "action": "apply",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "상담"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "[자율전공설계지원센터] 2026-1학기 전공설계지도(AA) 상담 OPEN 및 신청 안내",
+        "date": "2026.04.02",
+        "score": 0.721361
+      },
+      "top_reranked": {
+        "title": "[자율전공설계지원센터] 2026-1학기 전공설계지도(AA) 상담 OPEN 및 신청 안내",
+        "date": "2026.04.02",
+        "score": 0.866,
+        "moved_from_rank": 1
+      }
+    },
+    {
+      "id": "q049",
+      "query": "증명서",
+      "query_profile": {
+        "action": "unknown",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "증명서"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "교외장학금 2026년 (재)서울장학재단 청춘Start 장학금 장학생 선발 안내(4/8 마감)",
+        "date": "2026.03.30",
+        "score": 1.063749
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026년 국회기후변화포럼 기후변화 장학생 선발 안내(5/2 마감)",
+        "date": "2026.03.30",
+        "score": 0.679885,
+        "moved_from_rank": 6
+      }
+    },
+    {
+      "id": "q050",
+      "query": "재학증명서나 성적증명서 발급 방법과 수수료 안내를 찾고 싶어",
+      "query_profile": {
+        "action": "guide",
+        "audience": [
+          "undergraduate"
+        ],
+        "time_intent": {
+          "intent": "unspecified",
+          "years": []
+        },
+        "entities": {
+          "years": [],
+          "keywords": [
+            "증명서"
+          ]
+        }
+      },
+      "top_retrieval": {
+        "title": "교외장학금 2026학년도 (재)우양재단 마루·나래·다솜 신규장학생 선발 안내(1/26 마감)",
+        "date": "2026.01.07",
+        "score": 0.7915
+      },
+      "top_reranked": {
+        "title": "교외장학금 2026학년도 (재)우양재단 마루·나래·다솜 신규장학생 선발 안내(1/26 마감)",
+        "date": "2026.01.07",
+        "score": 0.888,
+        "moved_from_rank": 1
+      }
+    }
+  ]
+}
